@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  username       String    @unique
+  passwordHash   String
+  displayName    String
+  role           String    @default("viewer")
+  isActive       Boolean   @default(true)
+  failedAttempts Int       @default(0)
+  lockoutUntil   DateTime?
+  createdAt      DateTime  @default(now())
+
+  accountMembers AccountMember[]
+  opLogs         OpLog[]
+}
+
+model Account {
+  id          String   @id
+  displayName String?
+  sortOrder   Int?
+  createdAt   DateTime @default(now())
+
+  members    AccountMember[]
+  people     Person[]
+  exams      Exam[]
+  changeLogs ChangeLog[]
+  certReqs   CertRequirement[]
+}
+
+model AccountMember {
+  id        Int    @id @default(autoincrement())
+  userId    Int
+  accountId String
+  role      String @default("viewer")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, accountId])
+}
+
+model Person {
+  id             Int      @id @default(autoincrement())
+  accountId      String
+  sortOrder      Int?
+  orgName        String?
+  manager        String?
+  name           String
+  idCard         String?
+  birthYear      Int?
+  education      String?
+  socialSecurity String?
+  createdAt      DateTime @default(now())
+  deletedAt      DateTime?
+
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  certificates Certificate[]
+  attachments  Attachment[]
+  exams        Exam[]
+}
+
+model Certificate {
+  id         Int      @id @default(autoincrement())
+  personId   Int
+  certType   String?
+  certNo     String?
+  issueDate  String?
+  expiryDate String?
+  issuer     String?
+  createdAt  DateTime @default(now())
+  deletedAt  DateTime?
+
+  person      Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+}
+
+model CertHistory {
+  id         Int      @id @default(autoincrement())
+  certId     Int
+  personId   Int
+  action     String
+  certType   String?
+  certNo     String?
+  issueDate  String?
+  expiryDate String?
+  issuer     String?
+  prevExpiry String?
+  changedBy  String?
+  changedAt  DateTime @default(now())
+  note       String?
+
+  @@index([certId])
+  @@index([personId])
+}
+
+model Attachment {
+  id         Int      @id @default(autoincrement())
+  personId   Int
+  certId     Int?
+  fileName   String?
+  fileData   Bytes?
+  filePath   String?
+  fileSize   Int?
+  mimeType   String?
+  uploadTime DateTime @default(now())
+
+  person Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  cert   Certificate? @relation(fields: [certId], references: [id], onDelete: SetNull)
+}
+
+model Exam {
+  id         Int     @id @default(autoincrement())
+  accountId  String
+  personId   Int?
+  certId     Int?
+  orgName    String?
+  manager    String?
+  name       String?
+  certType   String?
+  regDate    String?
+  isPassed   String  @default("待考")
+  certNo     String?
+  issueDate  String?
+  expiryDate String?
+  issuer     String?
+  certLinked Boolean @default(false)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  person  Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+}
+
+model ChangeLog {
+  id             Int     @id @default(autoincrement())
+  accountId      String
+  changeType     String?
+  changeDate     String?
+  orgName        String?
+  manager        String?
+  name           String?
+  idCard         String?
+  education      String?
+  socialSecurity String?
+  certType       String?
+  certNo         String?
+  expiryDate     String?
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model CertType {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model SysConfig {
+  key   String  @id
+  value String?
+}
+
+model CertRequirement {
+  id        Int     @id @default(autoincrement())
+  accountId String
+  orgName   String?
+  certType  String
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, orgName, certType])
+}
+
+model OpLog {
+  id       Int      @id @default(autoincrement())
+  userId   Int?
+  username String?
+  action   String?
+  target   String?
+  detail   String?
+  ts       DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
