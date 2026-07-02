@@ -128,6 +128,46 @@ describe('computeDataReport — 转入/转出 + 月份过滤', () => {
   })
 })
 
+describe('computeDataReport — byOrg 按建制细分', () => {
+  it('每个建制各类别计数正确，按小计降序', () => {
+    const r = computeDataReport({
+      certs: [],
+      changeRows: [
+        chg(CHANGE_TYPES.CERT_ADD, 'A',  '一连', '2026-05-01'),
+        chg(CHANGE_TYPES.CERT_ADD, 'C1', '一连', '2026-05-02'),
+        chg(CHANGE_TYPES.CERT_ADD, 'C2', '一连', '2026-05-03'),
+        chg(CHANGE_TYPES.CERT_ADD, 'B',  '二连', '2026-05-04'),
+        chg(CHANGE_TYPES.CERT_REMOVE, 'C3', '二连', '2026-05-05'),
+        chg(CHANGE_TYPES.CERT_REMOVE, 'A',  '三连', '2026-05-06'),
+      ],
+      from: '2026-05', to: '2026-05',
+    })
+    // 转入：一连 3 本(A1+C2)，二连 1 本(B1)
+    expect(r.transferIn.byOrg).toEqual([
+      { org: '一连', A: 1, B: 0, C: 2, other: 0, total: 3 },
+      { org: '二连', A: 0, B: 1, C: 0, other: 0, total: 1 },
+    ])
+    // 转出：二连 1(C1)，三连 1(A1) —— 同数保持首次出现顺序
+    expect(r.transferOut.byOrg).toEqual([
+      { org: '二连', A: 0, B: 0, C: 1, other: 0, total: 1 },
+      { org: '三连', A: 1, B: 0, C: 0, other: 0, total: 1 },
+    ])
+  })
+
+  it('空建制归入「未填建制」，进 byOrg 但不进 orgs 名单', () => {
+    const r = computeDataReport({
+      certs: [],
+      changeRows: [
+        chg(CHANGE_TYPES.CERT_ADD, 'A', null, '2026-05-01'),
+        chg(CHANGE_TYPES.CERT_ADD, 'B', '一连', '2026-05-02'),
+      ],
+      from: '2026-05', to: '2026-05',
+    })
+    expect(r.transferIn.byOrg.map(o => o.org).sort()).toEqual(['一连', '未填建制'])
+    expect(r.transferIn.orgs).toEqual(['一连'])
+  })
+})
+
 describe('buildReportSheet', () => {
   it('生成可导出的行数组，含三大块', () => {
     const r = computeDataReport({

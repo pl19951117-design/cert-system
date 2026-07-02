@@ -28,11 +28,34 @@ model Account {
   sortOrder   Int?
   createdAt   DateTime @default(now())
 
-  members    AccountMember[]
-  people     Person[]
-  exams      Exam[]
-  changeLogs ChangeLog[]
-  certReqs   CertRequirement[]
+  members       AccountMember[]
+  people        Person[]
+  exams         Exam[]
+  changeLogs    ChangeLog[]
+  certReqs      CertRequirement[]
+  transferPlans TransferPlan[]
+}
+
+// 转入/转出登记（待办清单）：登记「计划转入/转出的人」，防止忘记
+model TransferPlan {
+  id          Int       @id @default(autoincrement())
+  accountId   String
+  direction   String    // 'in'(待转入) | 'out'(待转出)
+  name        String
+  idCard      String?
+  orgName     String?
+  manager     String?
+  certTypes   String?   // 涉及证件类别，逗号分隔（如 "A,C1"）
+  plannedDate String?   // 计划办理日期 YYYY-MM-DD
+  note        String?
+  status      String    @default("pending") // pending | done
+  personId    Int?      // 待转出时可关联现有人员
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, status])
 }
 
 model AccountMember {

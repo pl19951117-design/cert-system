@@ -8,6 +8,7 @@ const NAV = [
   { href: '/', label: '总览看板', icon: ChartIcon },
   { href: '/personnel', label: '人员证件管理', icon: UsersIcon },
   { href: '/alerts', label: '到期预警', icon: AlertIcon },
+  { href: '/transfers', label: '转入转出登记', icon: SwapIcon },
   { href: '/compliance', label: '合规报表', icon: CheckBadgeIcon },
   { href: '/exams', label: '考试报名', icon: ClipboardIcon },
   { href: '/logs', label: '变动流水', icon: LogIcon },
@@ -24,9 +25,11 @@ type Props = {
   user: { displayName: string; username: string; role: string }
   account: string
   accounts: string[]
+  /** 转入转出登记的待办数（>0 时显示角标） */
+  pendingTransfers?: number
 }
 
-export function AppSidebar({ user, account, accounts }: Props) {
+export function AppSidebar({ user, account, accounts, pendingTransfers = 0 }: Props) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -89,7 +92,15 @@ export function AppSidebar({ user, account, accounts }: Props) {
             )}
           >
             <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-            {label}
+            <span className="flex-1">{label}</span>
+            {href === '/transfers' && pendingTransfers > 0 && (
+              <span
+                className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500/90 text-white text-[10px] font-bold flex items-center justify-center tabular-nums"
+                aria-label={`${pendingTransfers} 条待办`}
+              >
+                {pendingTransfers > 99 ? '99+' : pendingTransfers}
+              </span>
+            )}
           </Link>
         ))}
 
@@ -157,6 +168,9 @@ function AlertIcon({ className }: { className?: string }) {
 }
 function ClipboardIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" /></svg>
+}
+function SwapIcon({ className }: { className?: string }) {
+  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
 }
 function LogIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" /></svg>

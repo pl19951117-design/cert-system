@@ -22,12 +22,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ? (savedAccount as string)
     : (accountIds[0] ?? '')
 
+  // 转入转出登记的待办数 —— 侧边栏角标
+  const pendingTransfers = account
+    ? await prisma.transferPlan.count({ where: { accountId: account, status: 'pending' } })
+    : 0
+
   return (
     <div className="flex h-full">
       <AppSidebar
         user={{ displayName: session.displayName, username: session.username, role: session.role }}
         account={account}
         accounts={accountIds}
+        pendingTransfers={pendingTransfers}
       />
       <main className="flex-1 ml-[232px] min-h-full overflow-x-hidden">
         {/*

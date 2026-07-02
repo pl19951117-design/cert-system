@@ -460,6 +460,20 @@
   color: #7c2d12;
 }
 
+/* 微交互：按钮按压反馈（大厂级"手感"来源） */
+.btn-primary:active:not(:disabled),
+.btn-secondary:active:not(:disabled) {
+  transform: scale(0.985);
+}
+button {
+  transition: transform 0.1s ease;
+}
+
+/* 徽章/头像等小元素的平滑过渡 */
+.badge {
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
 /* Print: hide app chrome, show only document */
 @media print {
   aside,

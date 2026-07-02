@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { getSession, decodeAccountCookie } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
@@ -50,11 +51,6 @@ export default async function DashboardPage() {
   const warning = certs.filter(c => certStatus(c.expiryDate) === 'warning').length
   const alertN  = expired + urgent + warning
 
-  const kpis = [
-    { label: '员工总数', value: people.length, sub: `共 ${new Set(people.map(p => p.orgName).filter(Boolean)).size} 个建制`, color: '#334155', border: 'border-l-slate-500' },
-    { label: '证件总数', value: certs.length,  sub: `人均 ${people.length ? (certs.length / people.length).toFixed(1) : 0} 张`, color: '#d97706', border: 'border-l-amber-500' },
-    { label: '需关注预警', value: alertN, sub: `过期 ${expired} · 紧急 ${urgent} · 预警 ${warning}`, color: '#dc2626', border: 'border-l-red-500' },
-  ]
 
   const socialMap = new Map<string, number>()
   for (const p of people) {
@@ -103,6 +99,33 @@ export default async function DashboardPage() {
     select: { changeType: true, certType: true, changeDate: true },
   })
   const monthly = computeMonthlyChange(monthlyRows, { now: nowDate, months: 12 })
+  const thisMonth = monthly[monthly.length - 1] ?? { added: 0, removed: 0 }
+
+  const kpis = [
+    {
+      label: '员工总数', value: people.length, href: '/personnel', icon: 'users' as const,
+      sub: `共 ${new Set(people.map(p => p.orgName).filter(Boolean)).size} 个建制`,
+      color: '#334155', border: 'border-l-slate-500',
+    },
+    {
+      label: '证件总数', value: certs.length, href: '/personnel', icon: 'cert' as const,
+      sub: thisMonth.added + thisMonth.removed > 0
+        ? `本月 +${thisMonth.added} / −${thisMonth.removed} 本`
+        : `人均 ${people.length ? (certs.length / people.length).toFixed(1) : 0} 张`,
+      color: '#d97706', border: 'border-l-amber-500',
+    },
+    {
+      label: '需关注预警', value: alertN, href: '/alerts', icon: 'alert' as const,
+      sub: `过期 ${expired} · 紧急 ${urgent} · 预警 ${warning}`,
+      color: '#dc2626', border: 'border-l-red-500',
+    },
+  ]
+
+  const KPI_ICONS: Record<'users' | 'cert' | 'alert', React.ReactNode> = {
+    users: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />,
+    cert:  <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm4.125-9.75a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" />,
+    alert: <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />,
+  }
 
   const alertCerts = certs
     .filter(c => ['expired', 'urgent', 'warning'].includes(certStatus(c.expiryDate)))
@@ -124,15 +147,25 @@ export default async function DashboardPage() {
         <DataReportLauncher />
       </div>
 
-      {/* KPI */}
+      {/* KPI —— 可点击直达对应页面 */}
       <div className="grid grid-cols-3 gap-5 mb-8">
         {kpis.map(k => (
-          <div key={k.label} className={`card-elevated kpi-card border-l-[3px] ${k.border} p-5`}>
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">{k.label}</div>
-            <div className="text-4xl font-extrabold text-slate-900 tracking-tight leading-none tabular-nums" style={{ color: k.color }}>{k.value}</div>
+          <Link key={k.label} href={k.href} className={`card-elevated kpi-card border-l-[3px] ${k.border} p-5 block group`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{k.label}</span>
+              <span className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center group-hover:bg-amber-50 group-hover:border-amber-100 transition-colors">
+                <svg className="w-4 h-4" style={{ color: k.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  {KPI_ICONS[k.icon]}
+                </svg>
+              </span>
+            </div>
+            <div className="text-4xl font-extrabold tracking-tight leading-none tabular-nums" style={{ color: k.color }}>{k.value}</div>
             <div className="h-px bg-slate-100 my-3" />
-            <div className="text-[11px] text-slate-400">{k.sub}</div>
-          </div>
+            <div className="text-[11px] text-slate-400 flex items-center justify-between">
+              <span>{k.sub}</span>
+              <span className="text-slate-300 group-hover:text-amber-500 transition-colors" aria-hidden="true">→</span>
+            </div>
+          </Link>
         ))}
       </div>
 

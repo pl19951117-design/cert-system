@@ -45,6 +45,25 @@ const STATUS_BADGE_CLASS: Record<CertStatusKey, string> = {
   none:    'badge-slate',
 }
 
+// 到期日期按紧急程度着色（比状态列更快扫到问题行）
+const EXPIRY_TEXT_CLASS: Record<CertStatusKey, string> = {
+  expired: 'text-red-500 font-semibold',
+  urgent:  'text-orange-500 font-semibold',
+  warning: 'text-amber-600',
+  ok:      'text-slate-500',
+  none:    'text-slate-400',
+}
+
+// 姓名首字头像的柔和配色（按 id 取模，稳定不闪变）
+const AVATAR_CLASSES = [
+  'bg-amber-100 text-amber-700',
+  'bg-sky-100 text-sky-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-violet-100 text-violet-700',
+  'bg-rose-100 text-rose-700',
+  'bg-slate-200 text-slate-600',
+]
+
 const PAGE_SIZE = 50
 
 function StatDot({ color, label, n }: { color: string; label: string; n: number }) {
@@ -84,9 +103,32 @@ export default function PersonnelPage() {
 
   const [showStats, setShowStats] = useState(true)
   const [page, setPage]           = useState(1)
+  const [showMoreFilters, setShowMoreFilters] = useState(false)
+  // 「转入转出登记」跳转过来时的添加预填
+  const [addPrefill, setAddPrefill] = useState<Record<string, string> | null>(null)
 
   // 任何筛选变化都重置到第一页
   useEffect(() => { setPage(1) }, [fOrg, fManager, fName, fEducation, fAge, fSocial, fCertType, fCertStatus])
+
+  // 接收登记页跳转指令：?add=1&name=..（打开添加弹窗并预填）或 ?search=..（按姓名筛选）
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    let consumed = false
+    if (q.get('add') === '1') {
+      const pre: Record<string, string> = {}
+      for (const k of ['name', 'orgName', 'manager', 'idCard'] as const) {
+        const v = q.get(k)
+        if (v) pre[k] = v
+      }
+      setAddPrefill(pre)
+      setShowAdd(true)
+      consumed = true
+    }
+    const search = q.get('search')
+    if (search) { setFName(search); consumed = true }
+    // 清掉 query，避免刷新/返回时重复触发
+    if (consumed) window.history.replaceState(null, '', '/personnel')
+  }, [])
 
   // === 数据加载 ===
   async function load() {
@@ -220,9 +262,14 @@ export default function PersonnelPage() {
         </div>
       </div>
 
-      {/* 筛选栏 */}
+      {/* 筛选栏 — 常用条件一行，低频条件折叠进「更多」 */}
       <div className="filter-bar">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">姓名</label>
+            <input value={fName} onChange={e => setFName(e.target.value)} placeholder="输入关键字…"
+              className="input-refined !py-1.5 !px-2.5 !text-xs" />
+          </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">归属建制</label>
             <input value={fOrg} onChange={e => setFOrg(e.target.value)} placeholder="输入关键字…"
@@ -232,39 +279,6 @@ export default function PersonnelPage() {
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">负责人</label>
             <input value={fManager} onChange={e => setFManager(e.target.value)} placeholder="输入关键字…"
               className="input-refined !py-1.5 !px-2.5 !text-xs" />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">姓名</label>
-            <input value={fName} onChange={e => setFName(e.target.value)} placeholder="输入关键字…"
-              className="input-refined !py-1.5 !px-2.5 !text-xs" />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">学历</label>
-            <select value={fEducation} onChange={e => setFEducation(e.target.value)}
-              className="input-refined !py-1.5 !px-2.5 !text-xs">
-              <option value="">全部</option>
-              {dropdowns.educations.map(ed => <option key={ed} value={ed}>{ed}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">年龄</label>
-            <select value={fAge} onChange={e => setFAge(e.target.value)}
-              className="input-refined !py-1.5 !px-2.5 !text-xs">
-              <option value="">全部</option>
-              <option value="30-">30岁及以下</option>
-              <option value="31-40">31-40岁</option>
-              <option value="41-50">41-50岁</option>
-              <option value="51-60">51-60岁</option>
-              <option value="60+">60岁以上</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">社保情况</label>
-            <select value={fSocial} onChange={e => setFSocial(e.target.value)}
-              className="input-refined !py-1.5 !px-2.5 !text-xs">
-              <option value="">全部</option>
-              {dropdowns.socials.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">证件类别</label>
@@ -283,12 +297,58 @@ export default function PersonnelPage() {
             </select>
           </div>
         </div>
-        {hasFilter && (
-          <button onClick={resetFilters}
-            className="text-xs text-amber-500 hover:text-amber-600 font-medium">
-            清除所有筛选
-          </button>
+
+        {showMoreFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-3 pt-3 border-t border-slate-100">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">学历</label>
+              <select value={fEducation} onChange={e => setFEducation(e.target.value)}
+                className="input-refined !py-1.5 !px-2.5 !text-xs">
+                <option value="">全部</option>
+                {dropdowns.educations.map(ed => <option key={ed} value={ed}>{ed}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">年龄</label>
+              <select value={fAge} onChange={e => setFAge(e.target.value)}
+                className="input-refined !py-1.5 !px-2.5 !text-xs">
+                <option value="">全部</option>
+                <option value="30-">30岁及以下</option>
+                <option value="31-40">31-40岁</option>
+                <option value="41-50">41-50岁</option>
+                <option value="51-60">51-60岁</option>
+                <option value="60+">60岁以上</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">社保情况</label>
+              <select value={fSocial} onChange={e => setFSocial(e.target.value)}
+                className="input-refined !py-1.5 !px-2.5 !text-xs">
+                <option value="">全部</option>
+                {dropdowns.socials.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
         )}
+
+        <div className="flex items-center gap-4 mt-3">
+          <button onClick={() => setShowMoreFilters(v => !v)}
+            className="text-xs text-slate-400 hover:text-slate-600 font-medium inline-flex items-center gap-1">
+            {showMoreFilters ? '收起' : '更多筛选'}
+            <svg className={`w-3 h-3 transition-transform ${showMoreFilters ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+            {!showMoreFilters && (fEducation || fAge || fSocial) && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-label="有生效的隐藏筛选" />
+            )}
+          </button>
+          {hasFilter && (
+            <button onClick={resetFilters}
+              className="text-xs text-amber-500 hover:text-amber-600 font-medium">
+              清除所有筛选
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 证件统计 */}
@@ -360,9 +420,23 @@ export default function PersonnelPage() {
           </div>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="card-elevated p-12 text-center" role="status">
+        <div className="card-elevated p-14 text-center" role="status">
+          <svg className="w-11 h-11 text-slate-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+          </svg>
           <div className="text-sm font-semibold text-slate-600">
-            {people.length === 0 ? '暂无人员，点击右上角添加或导入 Excel' : '没有符合条件的人员'}
+            {people.length === 0 ? '暂无人员' : '没有符合条件的人员'}
+          </div>
+          <div className="mt-3 flex items-center justify-center gap-3">
+            {people.length === 0 ? (
+              <>
+                <button onClick={() => setShowAdd(true)} className="text-xs text-amber-500 hover:text-amber-600 font-semibold">+ 添加第一个人员</button>
+                <span className="text-slate-200">|</span>
+                <button onClick={() => fileRef.current?.click()} className="text-xs text-slate-400 hover:text-slate-600 font-medium">导入 Excel</button>
+              </>
+            ) : (
+              <button onClick={resetFilters} className="text-xs text-amber-500 hover:text-amber-600 font-semibold">清除所有筛选</button>
+            )}
           </div>
         </div>
       ) : (
@@ -390,7 +464,12 @@ export default function PersonnelPage() {
                     <td className="text-xs">{p.orgName || '—'}</td>
                     <td className="text-xs">{p.manager || '—'}</td>
                     <td className="font-medium text-slate-800">
-                      <Link href={`/personnel/${p.id}`} className="hover:text-amber-600 hover:underline">{p.name}</Link>
+                      <Link href={`/personnel/${p.id}`} className="inline-flex items-center gap-2 hover:text-amber-600 group">
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10.5px] font-bold flex-shrink-0 ${AVATAR_CLASSES[p.id % AVATAR_CLASSES.length]}`} aria-hidden="true">
+                          {p.name[0]}
+                        </span>
+                        <span className="group-hover:underline">{p.name}</span>
+                      </Link>
                     </td>
                     <td className="font-mono text-xs text-slate-500">{p.idCard || '—'}</td>
                     <td className="text-xs text-center">{age !== null ? age : '—'}</td>
@@ -398,7 +477,7 @@ export default function PersonnelPage() {
                     <td className="text-xs">{p.socialSecurity || '—'}</td>
                     <td className="text-xs max-w-[140px] truncate" title={c?.certType || ''}>{c?.certType || '—'}</td>
                     <td className="text-xs max-w-[140px] truncate" title={c?.certNo || ''}>{c?.certNo || '—'}</td>
-                    <td className="text-xs">{c?.expiryDate || '—'}</td>
+                    <td className={`text-xs tabular-nums ${EXPIRY_TEXT_CLASS[st]}`}>{c?.expiryDate || '—'}</td>
                     <td>
                       <span className={`badge ${STATUS_BADGE_CLASS[st]}`}>
                         {statusLabel[st]}
@@ -469,7 +548,8 @@ export default function PersonnelPage() {
       {/* 模态框：state 全部在 modal 内部，parent 只控开关 + 接收完成事件 */}
       {showAdd && (
         <AddPersonModal
-          onClose={() => setShowAdd(false)}
+          initial={addPrefill ?? undefined}
+          onClose={() => { setShowAdd(false); setAddPrefill(null) }}
           onSaved={load}
         />
       )}

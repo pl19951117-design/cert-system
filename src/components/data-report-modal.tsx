@@ -58,10 +58,37 @@ function FlowBlock({ title, tone, flow, hasOther }: {
           </div>
         ))}
       </div>
-      <div className="text-xs text-slate-500">
-        <span className="font-semibold text-slate-600">涉及建制（{flow.orgs.length}）：</span>
-        {flow.orgs.length > 0 ? flow.orgs.join('、') : '无'}
-      </div>
+      {/* 按建制细分 */}
+      {flow.byOrg.length === 0 ? (
+        <div className="text-xs text-slate-400">该期间无记录</div>
+      ) : (
+        <div className="border border-slate-100 rounded-lg overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-50/80 text-slate-400">
+                <th className="text-left font-semibold px-2.5 py-1.5">建制</th>
+                <th className="text-right font-semibold px-2.5 py-1.5">A</th>
+                <th className="text-right font-semibold px-2.5 py-1.5">B</th>
+                <th className="text-right font-semibold px-2.5 py-1.5">C</th>
+                {hasOther && <th className="text-right font-semibold px-2.5 py-1.5">其他</th>}
+                <th className="text-right font-semibold px-2.5 py-1.5">小计</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flow.byOrg.map(o => (
+                <tr key={o.org} className="border-t border-slate-50">
+                  <td className="px-2.5 py-1.5 text-slate-700 font-medium truncate max-w-[140px]" title={o.org}>{o.org}</td>
+                  <td className="px-2.5 py-1.5 text-right tabular-nums text-slate-500">{o.A || '—'}</td>
+                  <td className="px-2.5 py-1.5 text-right tabular-nums text-slate-500">{o.B || '—'}</td>
+                  <td className="px-2.5 py-1.5 text-right tabular-nums text-slate-500">{o.C || '—'}</td>
+                  {hasOther && <td className="px-2.5 py-1.5 text-right tabular-nums text-slate-500">{o.other || '—'}</td>}
+                  <td className={`px-2.5 py-1.5 text-right tabular-nums font-semibold ${color}`}>{sign}{o.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

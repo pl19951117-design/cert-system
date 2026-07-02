@@ -6,6 +6,7 @@ import { differenceInDays, parseISO } from 'date-fns'
 
 type Cert = { id: number; expiryDate: string | null }
 type Counts = { expired: number; urgent: number; warning: number }
+type PlanLite = { status: string; plannedDate: string | null }
 
 function notify(c: Counts) {
   try {
@@ -21,28 +22,51 @@ function notify(c: Counts) {
   }
 }
 
+function todayYMD(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export function StartupReminder() {
   const router = useRouter()
   const [counts, setCounts] = useState<Counts | null>(null)
+  const [overdueTransfers, setOverdueTransfers] = useState(0)
+  const [show, setShow] = useState(false)
 
   useEffect(() => {
     if (sessionStorage.getItem('cert-reminder-shown')) return
     sessionStorage.setItem('cert-reminder-shown', '1')
     ;(async () => {
       try {
-        const certs: Cert[] = await fetch('/api/alerts').then(r => r.json())
-        if (!Array.isArray(certs)) return
+        const [certs, plans] = await Promise.all([
+          fetch('/api/alerts').then(r => r.json()).catch(() => []) as Promise<Cert[]>,
+          fetch('/api/transfer-plans').then(r => r.json()).catch(() => []) as Promise<PlanLite[]>,
+        ])
+
         let expired = 0, urgent = 0, warning = 0
-        for (const c of certs) {
-          if (!c.expiryDate) continue
-          const days = differenceInDays(parseISO(c.expiryDate), new Date())
-          if (days < 0) expired++
-          else if (days <= 30) urgent++
-          else if (days <= 90) warning++
+        if (Array.isArray(certs)) {
+          for (const c of certs) {
+            if (!c.expiryDate) continue
+            const days = differenceInDays(parseISO(c.expiryDate), new Date())
+            if (days < 0) expired++
+            else if (days <= 30) urgent++
+            else if (days <= 90) warning++
+          }
         }
-        if (expired + urgent + warning === 0) return
+
+        // 转入转出登记：超过计划日期还未办的待办
+        const today = todayYMD()
+        const overdue = Array.isArray(plans)
+          ? plans.filter(p => p.status === 'pending' && p.plannedDate && p.plannedDate < today).length
+          : 0
+
+        const hasCertAlerts = expired + urgent + warning > 0
+        if (!hasCertAlerts && overdue === 0) return
+
         const c = { expired, urgent, warning }
-        setCounts(c)
+        if (hasCertAlerts) setCounts(c)
+        setOverdueTransfers(overdue)
+        setShow(true)
         if (expired + urgent > 0) notify(c)
       } catch {
         /* 静默 */
@@ -50,11 +74,13 @@ export function StartupReminder() {
     })()
   }, [])
 
-  if (!counts) return null
+  if (!show) return null
 
-  const total = counts.expired + counts.urgent + counts.warning
+  const total = counts ? counts.expired + counts.urgent + counts.warning : 0
+  const close = () => setShow(false)
+
   return (
-    <div className="modal-overlay" onClick={() => setCounts(null)}>
+    <div className="modal-overlay" onClick={close}>
       <div className="modal-card max-w-md" onClick={e => e.stopPropagation()}>
         <div className="px-6 pt-6 pb-2 flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
@@ -63,27 +89,51 @@ export function StartupReminder() {
             </svg>
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">证件到期提醒</h2>
-            <p className="text-xs text-slate-400 mt-0.5">当前账套有 {total} 张证件需要关注</p>
+            <h2 className="text-base font-bold text-slate-900">启动提醒</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {total > 0 && `有 ${total} 张证件需要关注`}
+              {total > 0 && overdueTransfers > 0 && ' · '}
+              {overdueTransfers > 0 && `${overdueTransfers} 条转入转出登记已超期`}
+            </p>
           </div>
         </div>
-        <div className="px-6 py-4 grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-red-100 bg-red-50/60 p-3 text-center">
-            <div className="text-2xl font-bold text-red-600 tabular-nums">{counts.expired}</div>
-            <div className="text-[11px] text-red-500 mt-0.5">已过期</div>
+
+        {counts && (
+          <div className="px-6 py-3 grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-red-100 bg-red-50/60 p-3 text-center">
+              <div className="text-2xl font-bold text-red-600 tabular-nums">{counts.expired}</div>
+              <div className="text-[11px] text-red-500 mt-0.5">已过期</div>
+            </div>
+            <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-center">
+              <div className="text-2xl font-bold text-orange-600 tabular-nums">{counts.urgent}</div>
+              <div className="text-[11px] text-orange-500 mt-0.5">30天内</div>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3 text-center">
+              <div className="text-2xl font-bold text-amber-600 tabular-nums">{counts.warning}</div>
+              <div className="text-[11px] text-amber-500 mt-0.5">90天内</div>
+            </div>
           </div>
-          <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-center">
-            <div className="text-2xl font-bold text-orange-600 tabular-nums">{counts.urgent}</div>
-            <div className="text-[11px] text-orange-500 mt-0.5">30天内</div>
+        )}
+
+        {overdueTransfers > 0 && (
+          <div className="px-6 pb-2">
+            <button
+              onClick={() => { close(); router.push('/transfers') }}
+              className="w-full flex items-center justify-between rounded-xl border border-red-100 bg-red-50/60 px-4 py-3 hover:bg-red-50 transition-colors"
+            >
+              <span className="text-xs font-semibold text-red-600">
+                {overdueTransfers} 条转入/转出登记已超过计划日期
+              </span>
+              <span className="text-xs text-red-400">去处理 →</span>
+            </button>
           </div>
-          <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3 text-center">
-            <div className="text-2xl font-bold text-amber-600 tabular-nums">{counts.warning}</div>
-            <div className="text-[11px] text-amber-500 mt-0.5">90天内</div>
-          </div>
-        </div>
-        <div className="px-6 pb-6 pt-1 flex gap-3">
-          <button onClick={() => setCounts(null)} className="btn-secondary flex-1">知道了</button>
-          <button onClick={() => { setCounts(null); router.push('/alerts') }} className="btn-primary flex-1">查看预警清单</button>
+        )}
+
+        <div className="px-6 pb-6 pt-2 flex gap-3">
+          <button onClick={close} className="btn-secondary flex-1">知道了</button>
+          {total > 0 && (
+            <button onClick={() => { close(); router.push('/alerts') }} className="btn-primary flex-1">查看预警清单</button>
+          )}
         </div>
       </div>
     </div>

@@ -30,14 +30,25 @@ export type CoverageStat = {
   coverage: number
 }
 
+export type OrgFlowRow = {
+  org: string
+  A: number
+  B: number
+  C: number
+  other: number
+  total: number
+}
+
 export type FlowStat = {
   total: number
   A: number
   B: number
   C: number
   other: number
-  /** 涉及的建制（去重、按中文排序） */
+  /** 涉及的建制（去重、保留首次出现顺序） */
   orgs: string[]
+  /** 按建制细分的转入/转出本数，按 total 降序（同数按首次出现顺序） */
+  byOrg: OrgFlowRow[]
 }
 
 export type DataReport = {
@@ -110,27 +121,41 @@ export function computeDataReport(input: {
   const toStat = (x: { t: number; p: number }): CoverageStat => ({ total: x.t, paid: x.p, coverage: pct(x.p, x.t) })
 
   // ===== 期间流水 =====
-  const mk = () => ({ total: 0, A: 0, B: 0, C: 0, other: 0, orgs: new Set<string>() })
+  const mk = () => ({
+    total: 0, A: 0, B: 0, C: 0, other: 0,
+    // 建制 → 各类别计数；Map 保留首次出现顺序
+    orgMap: new Map<string, { A: number; B: number; C: number; other: number; total: number }>(),
+  })
   const tin = mk()
   const tout = mk()
+  const UNNAMED_ORG = '未填建制'
   for (const r of input.changeRows) {
     if (!inPeriod(r.changeDate, from, to)) continue
     const isAdd = r.changeType === CHANGE_TYPES.CERT_ADD
     const isRem = r.changeType === CHANGE_TYPES.CERT_REMOVE
     if (!isAdd && !isRem) continue
     const cat = certCategory(r.certType)
-    const org = (r.orgName ?? '').trim()
+    const org = (r.orgName ?? '').trim() || UNNAMED_ORG
     const bucket = isAdd ? tin : tout
     bucket.total++
     bucket[cat]++
-    if (org) bucket.orgs.add(org)
+    const row = bucket.orgMap.get(org) ?? { A: 0, B: 0, C: 0, other: 0, total: 0 }
+    row[cat]++
+    row.total++
+    bucket.orgMap.set(org, row)
   }
-  // orgs 保留「首次出现顺序」（Set 天然如此），避免拼音排序把「一连/二连/三连」
-  // 排成「二、三、一」这种反直觉顺序。
-  const finish = (f: ReturnType<typeof mk>): FlowStat => ({
-    total: f.total, A: f.A, B: f.B, C: f.C, other: f.other,
-    orgs: [...f.orgs],
-  })
+  // orgs 保留「首次出现顺序」（Map 天然如此），避免拼音排序把「一连/二连/三连」
+  // 排成「二、三、一」这种反直觉顺序。byOrg 按 total 降序（稳定排序保留同数原顺序）。
+  const finish = (f: ReturnType<typeof mk>): FlowStat => {
+    const byOrg: OrgFlowRow[] = Array.from(f.orgMap, ([org, r]) => ({ org, ...r }))
+      .sort((a, b) => b.total - a.total)
+    return {
+      total: f.total, A: f.A, B: f.B, C: f.C, other: f.other,
+      // 「未填建制」不进 orgs 名单（它不是真实建制），但保留在 byOrg 明细里
+      orgs: byOrg.map(o => o.org).filter(o => o !== UNNAMED_ORG),
+      byOrg,
+    }
+  }
 
   return {
     periodLabel: formatPeriodLabel(from, to),
@@ -161,21 +186,23 @@ export function buildReportSheet(report: DataReport): (string | number)[][] {
   if (report.current.other.total > 0) {
     rows.push(['其他类别', report.current.other.total, report.current.other.paid, cov(report.current.other)])
   }
-  rows.push([])
-  rows.push([`二、转入证件（证件新增）— ${report.periodLabel}`])
-  rows.push(['合计(本)', 'A 类', 'B 类', 'C 类', ...(report.transferIn.other > 0 ? ['其他'] : [])])
-  rows.push([
-    report.transferIn.total, report.transferIn.A, report.transferIn.B, report.transferIn.C,
-    ...(report.transferIn.other > 0 ? [report.transferIn.other] : []),
-  ])
-  rows.push(['涉及建制', report.transferIn.orgs.join('、') || '无'])
-  rows.push([])
-  rows.push([`三、转出证件（证件注销）— ${report.periodLabel}`])
-  rows.push(['合计(本)', 'A 类', 'B 类', 'C 类', ...(report.transferOut.other > 0 ? ['其他'] : [])])
-  rows.push([
-    report.transferOut.total, report.transferOut.A, report.transferOut.B, report.transferOut.C,
-    ...(report.transferOut.other > 0 ? [report.transferOut.other] : []),
-  ])
-  rows.push(['涉及建制', report.transferOut.orgs.join('、') || '无'])
+  const flowSection = (title: string, flow: FlowStat) => {
+    const hasOther = flow.other > 0
+    rows.push([])
+    rows.push([`${title} — ${report.periodLabel}`])
+    rows.push(['合计(本)', 'A 类', 'B 类', 'C 类', ...(hasOther ? ['其他'] : [])])
+    rows.push([flow.total, flow.A, flow.B, flow.C, ...(hasOther ? [flow.other] : [])])
+    if (flow.byOrg.length > 0) {
+      rows.push(['按建制细分：'])
+      rows.push(['建制', 'A 类', 'B 类', 'C 类', ...(hasOther ? ['其他'] : []), '小计'])
+      for (const o of flow.byOrg) {
+        rows.push([o.org, o.A, o.B, o.C, ...(hasOther ? [o.other] : []), o.total])
+      }
+    } else {
+      rows.push(['按建制细分：', '无记录'])
+    }
+  }
+  flowSection('二、转入证件（证件新增）', report.transferIn)
+  flowSection('三、转出证件（证件注销）', report.transferOut)
   return rows
 }

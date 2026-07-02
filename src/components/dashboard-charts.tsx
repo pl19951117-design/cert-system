@@ -7,7 +7,10 @@ type Props = {
   ageData: { name: string; value: number }[]
 }
 
-const PIE_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#6b7280']
+// 品牌色系：金主导 + 柔和辅色（与整体「石墨+金」风格一致）
+const PIE_COLORS = ['#f59e0b', '#64748b', '#38bdf8', '#34d399', '#a78bfa', '#fb7185']
+// 年龄结构：单色系暖金渐变（浅→深 = 年轻→年长），比彩虹色更整洁
+const AGE_COLORS = ['#fcd34d', '#fbbf24', '#f59e0b', '#d97706', '#b45309', '#94a3b8']
 
 export function DashboardCharts({ socialData, ageData }: Props) {
   return (
@@ -81,8 +84,8 @@ export function DashboardCharts({ socialData, ageData }: Props) {
               <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip formatter={(v) => `${v} 人`} />
               <Bar dataKey="value" name="人数" radius={[4, 4, 0, 0]}>
-                {ageData.map((_, idx) => (
-                  <Cell key={idx} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][idx % 5]} />
+                {ageData.map((d, idx) => (
+                  <Cell key={idx} fill={d.name === '未知' ? AGE_COLORS[5] : AGE_COLORS[idx % 5]} />
                 ))}
               </Bar>
             </BarChart>

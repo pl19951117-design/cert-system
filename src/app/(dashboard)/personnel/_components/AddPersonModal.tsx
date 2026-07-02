@@ -9,10 +9,12 @@ import { CERT_FIELDS_ADD, PERSON_FIELDS } from './form-config'
 export type AddPersonModalProps = {
   onClose: () => void
   onSaved: () => void
+  /** 初始预填（如从「转入转出登记」跳转带入姓名/建制） */
+  initial?: Record<string, string>
 }
 
-export function AddPersonModal({ onClose, onSaved }: AddPersonModalProps) {
-  const [form, setForm]   = useState<Record<string, string>>({})
+export function AddPersonModal({ onClose, onSaved, initial }: AddPersonModalProps) {
+  const [form, setForm]   = useState<Record<string, string>>(() => initial ?? {})
   const [saving, setSaving] = useState(false)
   const [err, setErr]     = useState('')
   const baseId = useId()

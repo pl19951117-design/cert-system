@@ -31,4 +31,19 @@ export async function ensureSoftDeleteSchema(): Promise<void> {
   // Account.sortOrder：自定义账套显示顺序（NULL 退化为按 createdAt 排）
   if (!(await hasColumn('Account', 'sortOrder')))
     await prisma.$executeRawUnsafe(`ALTER TABLE "Account" ADD COLUMN "sortOrder" INTEGER`)
+
+  // 转入/转出登记表（v0.2.0 新增）
+  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "TransferPlan" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "accountId" TEXT NOT NULL,
+    "direction" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "idCard" TEXT, "orgName" TEXT, "manager" TEXT, "certTypes" TEXT,
+    "plannedDate" TEXT, "note" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "personId" INTEGER,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" DATETIME
+  )`)
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "TransferPlan_accountId_status_idx" ON "TransferPlan"("accountId", "status")`)
 }
