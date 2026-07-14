@@ -3,20 +3,25 @@ import { cookies } from 'next/headers'
 import { NextRequest } from 'next/server'
 import crypto from 'crypto'
 
-// JWT 签名密钥解析：
+// JWT 签名密钥解析（**惰性**：只在真正签发/校验令牌时解析，绝不在模块加载时执行）：
 //   1) 环境变量 JWT_SECRET 优先（桌面版由 Electron 主进程注入每台机器独立的随机密钥；
-//      服务器版由部署脚本/compose 注入）——这样不同安装/部署互不通用，杜绝伪造登录。
+//      服务器版由部署脚本/compose 注入）——不同安装/部署互不通用，杜绝伪造登录。
 //   2) 非生产环境允许一个开发兜底密钥，方便本地 `next dev`。
-//   3) 生产环境却没有配置密钥 = 严重误配，直接失败（fail-closed），而不是退回到人尽皆知的固定值。
-function resolveSecret(): Uint8Array {
+//   3) 生产环境却没有配置密钥 = 严重误配，抛错（fail-closed），而不是退回到人尽皆知的固定值。
+//
+// 为什么惰性：`next build` 会以 production 模式导入所有路由模块来收集页面数据，
+// 若在模块顶层就解析并抛错，会导致整个构建失败。放到函数里则只在运行时求值。
+let _secret: Uint8Array | null = null
+function getSecret(): Uint8Array {
+  if (_secret) return _secret
   const fromEnv = process.env.JWT_SECRET
-  if (fromEnv && fromEnv.length >= 16) return new TextEncoder().encode(fromEnv)
+  if (fromEnv && fromEnv.length >= 16) { _secret = new TextEncoder().encode(fromEnv); return _secret }
   if (process.env.NODE_ENV !== 'production') {
-    return new TextEncoder().encode('cert-system-dev-secret-DO-NOT-USE-IN-PROD')
+    _secret = new TextEncoder().encode('cert-system-dev-secret-DO-NOT-USE-IN-PROD')
+    return _secret
   }
   throw new Error('JWT_SECRET 未设置：生产环境必须提供一段足够长的随机密钥')
 }
-const SECRET = resolveSecret()
 const COOKIE = 'cert-session'
 
 export type SessionUser = {
@@ -30,12 +35,12 @@ export async function signToken(payload: SessionUser) {
   return new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('24h')
-    .sign(SECRET)
+    .sign(getSecret())
 }
 
 export async function verifyToken(token: string): Promise<SessionUser | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET)
+    const { payload } = await jwtVerify(token, getSecret())
     return payload as unknown as SessionUser
   } catch {
     return null
