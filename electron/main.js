@@ -48,6 +48,22 @@ function ensureDatabase(dbPath, templateDbPath) {
   fs.copyFileSync(templateDbPath, dbPath)
 }
 
+// 每台机器一份独立的 JWT 签名密钥：首启随机生成并持久化到用户数据目录，
+// 之后每次读取同一份。避免所有安装共用写死的密钥导致会话可被伪造。
+function ensureJwtSecret(userData) {
+  const crypto = require('crypto')
+  const p = path.join(userData, 'jwt-secret')
+  try {
+    if (fs.existsSync(p)) {
+      const s = fs.readFileSync(p, 'utf8').trim()
+      if (s.length >= 32) return s
+    }
+  } catch { /* 读失败则重新生成 */ }
+  const s = crypto.randomBytes(48).toString('base64url')
+  try { fs.writeFileSync(p, s, { mode: 0o600 }) } catch (e) { mlog('写入 jwt-secret 失败: ' + String(e)) }
+  return s
+}
+
 function stamp() {
   const d = new Date()
   const p = (n) => String(n).padStart(2, '0')
@@ -105,13 +121,14 @@ function applyPendingRestore(userData, dbPath) {
   }
 }
 
-function startServer({ serverJs, standaloneDir, dbPath, logPath }) {
+function startServer({ serverJs, standaloneDir, dbPath, logPath, userData }) {
   if (!fs.existsSync(serverJs)) {
     throw new Error(`找不到应用服务文件：${serverJs}\n请先运行 npm run build。`)
   }
   // connection_limit=1 让所有数据库访问走单连接、串行化，避免后台维护(VACUUM/迁移/备份)
   // 与登录等请求并发时触发 SQLite 的 SQLITE_BUSY 导致 500。
   const dbUrl = 'file:' + dbPath.replace(/\\/g, '/') + '?connection_limit=1'
+  const jwtSecret = ensureJwtSecret(userData)
   mlog('startServer dbUrl=' + dbUrl)
 
   // 服务进程的 stdout/stderr 直接写入日志文件：① 打包后的 GUI 进程没有控制台，
@@ -129,6 +146,7 @@ function startServer({ serverJs, standaloneDir, dbPath, logPath }) {
       PORT: String(PORT),
       HOSTNAME: HOST,
       DATABASE_URL: dbUrl,
+      JWT_SECRET: jwtSecret,
     },
     stdio: ['ignore', out, out, 'ipc'],
   })

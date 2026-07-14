@@ -1,0 +1,19 @@
+# 构建镜像时排除的内容（保留 prisma/ 与 src/ 与 scripts/ 等构建必需项）
+node_modules
+.next
+out
+release
+dist
+backups
+.git
+.claude
+electron
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.env
+.env.*
+!deploy/.env.example
+*.log
+npm-debug.log*

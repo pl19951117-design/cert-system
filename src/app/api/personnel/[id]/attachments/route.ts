@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionFromRequest } from '@/lib/auth'
+import { getSessionFromRequest, getAccountId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getAttachmentsDir, extOf, mimeOf } from '@/lib/attachments'
 import fs from 'fs'
@@ -10,11 +10,20 @@ type Ctx = { params: Promise<{ id: string }> }
 
 const MAX_SIZE = 20 * 1024 * 1024 // 20MB
 
+/** 账套隔离：确认人员属于当前账套，返回 true/false */
+async function personInAccount(personId: number, accountId: string): Promise<boolean> {
+  if (!accountId) return false
+  const p = await prisma.person.findFirst({ where: { id: personId, accountId }, select: { id: true } })
+  return !!p
+}
+
 // 列出该人员的所有附件（仅元数据，不含文件内容）
 export async function GET(req: NextRequest, { params }: Ctx) {
   const session = await getSessionFromRequest(req)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
+  const accountId = await getAccountId(req)
+  if (!await personInAccount(Number(id), accountId)) return NextResponse.json({ error: '人员不存在' }, { status: 404 })
   const attachments = await prisma.attachment.findMany({
     where: { personId: Number(id) },
     select: { id: true, certId: true, fileName: true, uploadTime: true },
@@ -30,6 +39,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (session.role === 'viewer') return NextResponse.json({ error: '无权限' }, { status: 403 })
 
   const { id } = await params
+  const accountId = await getAccountId(req)
+  if (!await personInAccount(Number(id), accountId)) return NextResponse.json({ error: '人员不存在' }, { status: 404 })
   const form = await req.formData()
   const file = form.get('file')
   const certIdRaw = form.get('certId')

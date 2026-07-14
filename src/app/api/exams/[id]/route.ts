@@ -1,17 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getSessionFromRequest } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ok, noContent, httpErrors } from '@/server/http'
+import { route, WRITER_ROLES } from '@/server/handler'
+import { parseId } from '@/server/validation'
 import { applyExamToCert } from '@/lib/exam-cert'
 
-type Ctx = { params: Promise<{ id: string }> }
+type Params = { id: string }
 
-export async function PUT(req: NextRequest, { params }: Ctx) {
-  const session = await getSessionFromRequest(req)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { id } = await params
+/** 取报名记录并校验归属当前账套；不存在或跨账套都 404，避免 IDOR */
+async function findScoped(id: number, accountId: string) {
+  const exam = await prisma.exam.findFirst({ where: { id, accountId } })
+  if (!exam) throw httpErrors.notFound('报名记录不存在')
+  return exam
+}
+
+export const PUT = route<Params>({ roles: WRITER_ROLES }, async ({ req, params, accountId, session }) => {
+  const id = parseId(params.id)
+  await findScoped(id, accountId)   // 账套隔离校验
   const body = await req.json()
   const exam = await prisma.exam.update({
-    where: { id: Number(id) },
+    where: { id },
     data: {
       personId: body.personId ? Number(body.personId) : null,
       certId: body.certId ? Number(body.certId) : null,
@@ -28,13 +35,12 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     },
   })
   await applyExamToCert(exam.id, session)
-  return NextResponse.json(exam)
-}
+  return ok(exam)
+})
 
-export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const session = await getSessionFromRequest(req)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { id } = await params
-  await prisma.exam.delete({ where: { id: Number(id) } })
-  return NextResponse.json({ ok: true })
-}
+export const DELETE = route<Params>({ roles: WRITER_ROLES }, async ({ params, accountId }) => {
+  const id = parseId(params.id)
+  await findScoped(id, accountId)
+  await prisma.exam.delete({ where: { id } })
+  return noContent()
+})

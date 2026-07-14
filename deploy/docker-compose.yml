@@ -1,0 +1,40 @@
+# 证件管理系统 —— 一键部署编排
+# 用法（在 deploy/ 目录下）：
+#   1) 复制 .env.example 为 .env，填好 JWT_SECRET 和 SITE_ADDRESS
+#   2) docker compose up -d --build
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: cert-system:latest
+    restart: unless-stopped
+    environment:
+      # 会话签名密钥（必填）：openssl rand -base64 48
+      - JWT_SECRET=${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
+    volumes:
+      - cert-data:/data          # SQLite 数据库 + 附件，持久化
+    expose:
+      - "3000"
+
+  # Caddy：反向代理 + 自动 HTTPS（有域名时自动申请 Let's Encrypt 证书）
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # 有域名：填 cert.example.com（自动 HTTPS）；仅用 IP：填 :80（仅 HTTP，不加密，不推荐放公网）
+      - SITE_ADDRESS=${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  cert-data:
+  caddy-data:
+  caddy-config:

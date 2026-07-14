@@ -1,0 +1,11 @@
+# SITE_ADDRESS 来自 .env：
+#   - 有域名 → cert.example.com（Caddy 自动申请并续期 HTTPS 证书）
+#   - 仅 IP  → :80（仅 HTTP，公网慎用）
+{$SITE_ADDRESS} {
+	encode gzip
+	# 附件上传上限（与后端一致，留余量）
+	request_body {
+		max_size 30MB
+	}
+	reverse_proxy app:3000
+}

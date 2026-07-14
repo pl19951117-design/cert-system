@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionFromRequest } from '@/lib/auth'
+import { getSessionFromRequest, getAccountId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { attachmentFsPath, mimeOf } from '@/lib/attachments'
 import { createReadStream, existsSync, statSync, rmSync } from 'fs'
@@ -7,11 +7,23 @@ import { Readable } from 'stream'
 
 type Ctx = { params: Promise<{ id: string; attId: string }> }
 
+/** 账套隔离：确认附件所属人员属于当前账套 */
+async function attachmentInAccount(attId: number, accountId: string): Promise<boolean> {
+  if (!accountId) return false
+  const att = await prisma.attachment.findFirst({
+    where: { id: attId, person: { accountId } },
+    select: { id: true },
+  })
+  return !!att
+}
+
 // 下载 / 预览附件（优先磁盘，兼容尚未迁移的旧 BLOB）
 export async function GET(req: NextRequest, { params }: Ctx) {
   const session = await getSessionFromRequest(req)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { attId } = await params
+  const accountId = await getAccountId(req)
+  if (!await attachmentInAccount(Number(attId), accountId)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const att = await prisma.attachment.findUnique({
     where: { id: Number(attId) },
     select: { id: true, fileName: true, filePath: true, fileData: true },
@@ -49,6 +61,8 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (session.role === 'viewer') return NextResponse.json({ error: '无权限' }, { status: 403 })
   const { attId } = await params
+  const accountId = await getAccountId(req)
+  if (!await attachmentInAccount(Number(attId), accountId)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const att = await prisma.attachment.findUnique({
     where: { id: Number(attId) },
     select: { filePath: true },

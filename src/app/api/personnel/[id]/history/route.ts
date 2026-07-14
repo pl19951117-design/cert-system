@@ -1,14 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getSessionFromRequest } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ok, httpErrors } from '@/server/http'
+import { route } from '@/server/handler'
+import { parseId } from '@/server/validation'
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSessionFromRequest(req)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { id } = await params
+type Params = { id: string }
+
+export const GET = route<Params>({}, async ({ params, accountId }) => {
+  const personId = parseId(params.id)
+  // 账套隔离：先确认该人员属于当前账套，避免跨账套读取证件历史
+  const person = await prisma.person.findFirst({ where: { id: personId, accountId }, select: { id: true } })
+  if (!person) throw httpErrors.notFound('人员不存在')
+
   const history = await prisma.certHistory.findMany({
-    where: { personId: Number(id) },
+    where: { personId },
     orderBy: { id: 'desc' },
   })
-  return NextResponse.json(history)
-}
+  return ok(history)
+})
