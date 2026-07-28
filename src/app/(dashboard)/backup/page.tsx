@@ -19,16 +19,7 @@ function fmtTime(ms: number) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-declare global {
-  interface Window {
-    desktop?: {
-      isDesktop: boolean
-      relaunch: () => Promise<void>
-      pickRestoreFile: () => Promise<{ ok: boolean; canceled?: boolean; error?: string; path?: string; fileName?: string }>
-      openBackupsFolder: () => Promise<{ ok: boolean }>
-    }
-  }
-}
+// Window.desktop 的类型集中声明在 src/types/desktop.d.ts
 
 export default function BackupPage() {
   const [info, setInfo] = useState<Info | null>(null)

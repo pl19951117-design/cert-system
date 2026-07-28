@@ -1,16 +1,21 @@
 const { app, BrowserWindow, shell, dialog, Menu, session, ipcMain } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const os = require('os')
 const http = require('http')
-const { fork } = require('child_process')
+const { fork, spawn } = require('child_process')
 
 const PORT = 34117
 const HOST = '127.0.0.1'
+// Electron 窗口与健康检查始终走回环地址；对外监听与否由「局域网共享」开关决定
 const APP_URL = `http://${HOST}:${PORT}`
+const FIREWALL_RULE = 'CertSystem-LAN'
 
 let serverProcess = null
 let mainWindow = null
 let LOG_PATH = null
+// 当前服务进程实际是否在对外监听（用于判断改了开关后是否需要重启生效）
+let currentBindIsLan = false
 
 function mlog(s) {
   try { if (LOG_PATH) fs.appendFileSync(LOG_PATH, `[main ${new Date().toISOString()}] ${s}\n`) } catch { /* ignore */ }
@@ -62,6 +67,74 @@ function ensureJwtSecret(userData) {
   const s = crypto.randomBytes(48).toString('base64url')
   try { fs.writeFileSync(p, s, { mode: 0o600 }) } catch (e) { mlog('写入 jwt-secret 失败: ' + String(e)) }
   return s
+}
+
+// ===== 本机设置（settings.json） =====
+// 目前只存「局域网共享」开关。默认关闭 —— 安全默认：不主动对外开放。
+function settingsPath(userData) {
+  return path.join(userData, 'settings.json')
+}
+function readSettings(userData) {
+  try {
+    const s = JSON.parse(fs.readFileSync(settingsPath(userData), 'utf8'))
+    return (s && typeof s === 'object') ? s : {}
+  } catch {
+    return {}
+  }
+}
+function writeSettings(userData, patch) {
+  const next = { ...readSettings(userData), ...patch }
+  try {
+    fs.writeFileSync(settingsPath(userData), JSON.stringify(next, null, 2), 'utf8')
+  } catch (e) {
+    mlog('写入 settings.json 失败: ' + String(e))
+  }
+  return next
+}
+
+/** 本机的局域网 IPv4 地址（排除回环与虚拟回环），供分享给同事 */
+function getLanAddresses() {
+  const out = []
+  const ifaces = os.networkInterfaces()
+  for (const name of Object.keys(ifaces)) {
+    for (const a of ifaces[name] || []) {
+      // Node 18+ family 可能是 'IPv4' 或 4
+      const isV4 = a.family === 'IPv4' || a.family === 4
+      if (isV4 && !a.internal) out.push({ name, address: a.address })
+    }
+  }
+  return out
+}
+
+/**
+ * 放行 Windows 防火墙入站端口。需要管理员权限 —— 通过 Start-Process -Verb RunAs
+ * 触发 UAC 由用户确认。规则名用纯 ASCII，避免 .bat 的中文编码问题。
+ */
+function addFirewallRule() {
+  const bat = path.join(app.getPath('temp'), 'cert-system-firewall.bat')
+  const content = [
+    '@echo off',
+    `netsh advfirewall firewall delete rule name="${FIREWALL_RULE}" >nul 2>&1`,
+    `netsh advfirewall firewall add rule name="${FIREWALL_RULE}" dir=in action=allow protocol=TCP localport=${PORT}`,
+  ].join('\r\n') + '\r\n'
+  try {
+    fs.writeFileSync(bat, content, 'ascii')
+  } catch (e) {
+    return Promise.resolve({ ok: false, error: '无法写入临时脚本：' + String(e) })
+  }
+  return new Promise((resolve) => {
+    const ps = spawn('powershell', [
+      '-NoProfile', '-NonInteractive', '-Command',
+      `Start-Process -FilePath "${bat}" -Verb RunAs -WindowStyle Hidden -Wait`,
+    ], { windowsHide: true })
+    ps.on('exit', (code) => {
+      mlog('firewall rule exit=' + code)
+      resolve(code === 0
+        ? { ok: true }
+        : { ok: false, error: '已取消或未获得管理员授权' })
+    })
+    ps.on('error', (e) => resolve({ ok: false, error: String(e) }))
+  })
 }
 
 function stamp() {
@@ -129,7 +202,11 @@ function startServer({ serverJs, standaloneDir, dbPath, logPath, userData }) {
   // 与登录等请求并发时触发 SQLite 的 SQLITE_BUSY 导致 500。
   const dbUrl = 'file:' + dbPath.replace(/\\/g, '/') + '?connection_limit=1'
   const jwtSecret = ensureJwtSecret(userData)
-  mlog('startServer dbUrl=' + dbUrl)
+  // 局域网共享：开启则监听 0.0.0.0（同事可访问），否则只监听回环（仅本机）
+  const lanSharing = readSettings(userData).lanSharing === true
+  const bindHost = lanSharing ? '0.0.0.0' : HOST
+  currentBindIsLan = lanSharing
+  mlog(`startServer dbUrl=${dbUrl} bind=${bindHost} lanSharing=${lanSharing}`)
 
   // 服务进程的 stdout/stderr 直接写入日志文件：① 打包后的 GUI 进程没有控制台，
   // 旧版把子进程输出 pipe 到 process.stdout 可能导致阻塞/异常；② 同时留下排障日志。
@@ -144,7 +221,7 @@ function startServer({ serverJs, standaloneDir, dbPath, logPath, userData }) {
       NODE_ENV: 'production',
       ELECTRON: '1',
       PORT: String(PORT),
-      HOSTNAME: HOST,
+      HOSTNAME: bindHost,
       DATABASE_URL: dbUrl,
       JWT_SECRET: jwtSecret,
     },
@@ -270,6 +347,29 @@ function registerIpc() {
     shell.openPath(dir)
     return { ok: true }
   })
+
+  // ===== 局域网共享 =====
+  ipcMain.handle('lan:getStatus', () => {
+    const userData = app.getPath('userData')
+    const enabled = readSettings(userData).lanSharing === true
+    return {
+      enabled,
+      port: PORT,
+      addresses: getLanAddresses(),
+      // 当前服务进程实际的监听状态（与设置不一致说明改了开关但还没重启）
+      activeEnabled: currentBindIsLan,
+    }
+  })
+
+  ipcMain.handle('lan:setEnabled', (_e, enabled) => {
+    const userData = app.getPath('userData')
+    writeSettings(userData, { lanSharing: !!enabled })
+    mlog('lanSharing set to ' + !!enabled)
+    // 监听地址在服务进程启动时确定，需重启应用生效
+    return { ok: true, needsRestart: currentBindIsLan !== !!enabled }
+  })
+
+  ipcMain.handle('lan:addFirewallRule', () => addFirewallRule())
 
   // 选择外部备份文件：返回路径，由服务端 /api/restore 暂存（支持 .db 与 .zip 完整备份）
   ipcMain.handle('restore:pickFile', async () => {

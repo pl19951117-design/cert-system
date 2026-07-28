@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserManagement } from './_components/UserManagement'
+import { LanSharing } from './_components/LanSharing'
 
 type Account = { id: string; displayName: string | null; createdAt: string }
 type CertType = { id: number; name: string; description: string | null; isActive: boolean; sortOrder: number }
@@ -10,7 +11,7 @@ type CertReq = { id: number; orgName: string | null; certType: string }
 
 export default function AdminPage() {
   const router = useRouter()
-  const [tab, setTab] = useState<'accounts' | 'users' | 'certtypes' | 'reqs'>('accounts')
+  const [tab, setTab] = useState<'accounts' | 'users' | 'lan' | 'certtypes' | 'reqs'>('accounts')
   const [currentUserId, setCurrentUserId] = useState(0)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [certTypes, setCertTypes] = useState<CertType[]>([])
@@ -149,6 +150,7 @@ export default function AdminPage() {
   const tabs = [
     { key: 'accounts', label: '账套管理' },
     { key: 'users', label: '用户管理' },
+    { key: 'lan', label: '局域网共享' },
     { key: 'certtypes', label: '证件类型' },
     { key: 'reqs', label: '证件要求' },
   ] as const
@@ -185,6 +187,8 @@ export default function AdminPage() {
         <div className="text-sm text-slate-400 py-8 text-center">加载中…</div>
       ) : tab === 'users' ? (
         <UserManagement currentUserId={currentUserId} />
+      ) : tab === 'lan' ? (
+        <LanSharing />
       ) : tab === 'accounts' ? (
         <div className="grid grid-cols-5 gap-6">
           {/* 左：账套列表 */}
