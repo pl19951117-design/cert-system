@@ -11,9 +11,11 @@ export type EditPersonModalProps = {
   person: Person
   onClose: () => void
   onSaved: () => void
+  /** 已有的建制/负责人，用于自动补全 —— 选中已有值才能正确归入同一组 */
+  options?: { orgs: string[]; managers: string[] }
 }
 
-export function EditPersonModal({ person, onClose, onSaved }: EditPersonModalProps) {
+export function EditPersonModal({ person, onClose, onSaved, options }: EditPersonModalProps) {
   const [form, setForm] = useState<Record<string, string>>(() => ({
     name: person.name,
     orgName: person.orgName || '',
@@ -62,6 +64,10 @@ export function EditPersonModal({ person, onClose, onSaved }: EditPersonModalPro
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
           {PERSON_FIELDS.map(f => {
             const id = `${baseId}-${f.key}`
+            const listId = f.key === 'orgName' ? `${baseId}-orgs`
+                         : f.key === 'manager' ? `${baseId}-mgrs` : undefined
+            const listItems = f.key === 'orgName' ? options?.orgs
+                            : f.key === 'manager' ? options?.managers : undefined
             return (
               <div key={f.key} className={f.col === 2 ? 'sm:col-span-2' : ''}>
                 <label htmlFor={id} className="block text-xs font-semibold text-slate-600 mb-1">
@@ -76,8 +82,14 @@ export function EditPersonModal({ person, onClose, onSaved }: EditPersonModalPro
                   placeholder={f.placeholder || ''}
                   required={f.required}
                   aria-required={f.required || undefined}
+                  list={listItems?.length ? listId : undefined}
                   className="input-refined"
                 />
+                {!!listItems?.length && (
+                  <datalist id={listId}>
+                    {listItems.map(v => <option key={v} value={v} />)}
+                  </datalist>
+                )}
               </div>
             )
           })}

@@ -38,13 +38,15 @@ function todayYMD(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function PlanFormModal({ title, submitLabel, form, setForm, onSubmit, onClose, saving }: {
+function PlanFormModal({ title, submitLabel, form, setForm, onSubmit, onClose, saving, options }: {
   title: string; submitLabel: string
   form: Record<string, string>
   setForm: React.Dispatch<React.SetStateAction<Record<string, string>>>
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
   saving: boolean
+  /** 已有建制/负责人，自动补全 —— 与人员表保持一致的写法才能正确归类 */
+  options: { orgs: string[]; managers: string[] }
 }) {
   return (
     <Modal onClose={onClose} title={title} size="md">
@@ -75,20 +77,31 @@ function PlanFormModal({ title, submitLabel, form, setForm, onSubmit, onClose, s
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {FIELDS.map(f => (
-            <div key={f.key} className={'col' in f && f.col === 2 ? 'col-span-2' : ''}>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                {f.label}{'required' in f && f.required && <span className="text-red-400 ml-0.5">*</span>}
-              </label>
-              <input
-                type={'type' in f ? f.type : 'text'}
-                value={form[f.key] || ''}
-                onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                placeholder={'placeholder' in f ? f.placeholder : ''}
-                className="input-refined"
-              />
-            </div>
-          ))}
+          {FIELDS.map(f => {
+            const listItems = f.key === 'orgName' ? options.orgs
+                            : f.key === 'manager' ? options.managers : undefined
+            const listId = f.key === 'orgName' ? 'tp-orgs' : f.key === 'manager' ? 'tp-mgrs' : undefined
+            return (
+              <div key={f.key} className={'col' in f && f.col === 2 ? 'col-span-2' : ''}>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  {f.label}{'required' in f && f.required && <span className="text-red-400 ml-0.5">*</span>}
+                </label>
+                <input
+                  type={'type' in f ? f.type : 'text'}
+                  value={form[f.key] || ''}
+                  onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  placeholder={'placeholder' in f ? f.placeholder : ''}
+                  list={listItems?.length ? listId : undefined}
+                  className="input-refined"
+                />
+                {!!listItems?.length && (
+                  <datalist id={listId}>
+                    {listItems.map(v => <option key={v} value={v} />)}
+                  </datalist>
+                )}
+              </div>
+            )
+          })}
         </div>
         <div className="flex gap-3 mt-5">
           <button type="button" onClick={onClose} className="btn-secondary flex-1">取消</button>
@@ -113,6 +126,8 @@ export default function TransfersPage() {
   const [editForm, setEditForm] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [confirmDel, setConfirmDel] = useState<number | null>(null)
+  // 已有建制/负责人（取自人员表），供表单自动补全，保证与人员表写法一致
+  const [options, setOptions] = useState<{ orgs: string[]; managers: string[] }>({ orgs: [], managers: [] })
 
   async function load() {
     setLoading(true)
@@ -121,7 +136,20 @@ export default function TransfersPage() {
     } catch { setPlans([]) }
     setLoading(false)
   }
-  useEffect(() => { load() }, [])
+
+  async function loadOptions() {
+    try {
+      const people = await getJSON<{ orgName: string | null; manager: string | null }[]>('/api/personnel')
+      const o = new Set<string>(), m = new Set<string>()
+      for (const p of people) {
+        if (p.orgName) o.add(p.orgName)
+        if (p.manager) m.add(p.manager)
+      }
+      setOptions({ orgs: [...o], managers: [...m] })
+    } catch { /* 补全不可用不影响主流程 */ }
+  }
+
+  useEffect(() => { load(); loadOptions() }, [])
 
   const rows = useMemo(() => plans.filter(p => p.status === tab), [plans, tab])
   const pendingCount = useMemo(() => plans.filter(p => p.status === 'pending').length, [plans])
@@ -310,11 +338,11 @@ export default function TransfersPage() {
 
       {showAdd && (
         <PlanFormModal title="新增登记" submitLabel="确认登记" form={form} setForm={setForm}
-          onSubmit={addPlan} onClose={() => setShowAdd(false)} saving={saving} />
+          onSubmit={addPlan} onClose={() => setShowAdd(false)} saving={saving} options={options} />
       )}
       {editing && (
         <PlanFormModal title="编辑登记" submitLabel="保存修改" form={editForm} setForm={setEditForm}
-          onSubmit={saveEdit} onClose={() => setEditing(null)} saving={saving} />
+          onSubmit={saveEdit} onClose={() => setEditing(null)} saving={saving} options={options} />
       )}
     </div>
   )

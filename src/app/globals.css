@@ -460,6 +460,36 @@
   color: #7c2d12;
 }
 
+/* ============ 侧边栏折叠 ============
+   React 只负责在 <html> 上切换 data-sidebar="collapsed"，
+   所有视觉变化由 CSS 驱动 —— 避免服务端/客户端水合不一致。 */
+.app-sidebar { width: 232px; transition: width 0.2s ease; }
+.app-main    { margin-left: 232px; transition: margin-left 0.2s ease; }
+
+:root[data-sidebar="collapsed"] .app-sidebar { width: 64px; }
+:root[data-sidebar="collapsed"] .app-main    { margin-left: 64px; }
+
+/* 折叠时隐藏文字/次要区块，图标居中 */
+:root[data-sidebar="collapsed"] .sb-hide { display: none !important; }
+:root[data-sidebar="collapsed"] .sb-row {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+  gap: 0;
+}
+/* 折叠时待办角标退化为小红点（数字放不下） */
+:root[data-sidebar="collapsed"] .sb-badge {
+  position: absolute;
+  top: 5px;
+  right: 9px;
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+}
+
 /* 微交互：按钮按压反馈（大厂级"手感"来源） */
 .btn-primary:active:not(:disabled),
 .btn-secondary:active:not(:disabled) {

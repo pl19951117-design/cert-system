@@ -11,9 +11,11 @@ export type AddPersonModalProps = {
   onSaved: () => void
   /** 初始预填（如从「转入转出登记」跳转带入姓名/建制） */
   initial?: Record<string, string>
+  /** 已有的建制/负责人，用于自动补全 —— 选中已有值才能正确归入同一组 */
+  options?: { orgs: string[]; managers: string[] }
 }
 
-export function AddPersonModal({ onClose, onSaved, initial }: AddPersonModalProps) {
+export function AddPersonModal({ onClose, onSaved, initial, options }: AddPersonModalProps) {
   const [form, setForm]   = useState<Record<string, string>>(() => initial ?? {})
   const [saving, setSaving] = useState(false)
   const [err, setErr]     = useState('')
@@ -51,6 +53,11 @@ export function AddPersonModal({ onClose, onSaved, initial }: AddPersonModalProp
           {PERSON_FIELDS.map(f => {
             const id = `${baseId}-${f.key}`
             const isName = f.key === 'name'
+            // 建制/负责人给出已有值的自动补全：选已有值才会被归入同一组
+            const listId = f.key === 'orgName' ? `${baseId}-orgs`
+                         : f.key === 'manager' ? `${baseId}-mgrs` : undefined
+            const listItems = f.key === 'orgName' ? options?.orgs
+                            : f.key === 'manager' ? options?.managers : undefined
             return (
               <div key={f.key} className={f.col === 2 ? 'sm:col-span-2' : ''}>
                 <label htmlFor={id} className="block text-xs font-semibold text-slate-600 mb-1">
@@ -67,8 +74,14 @@ export function AddPersonModal({ onClose, onSaved, initial }: AddPersonModalProp
                   aria-required={f.required || undefined}
                   aria-invalid={isName && !!err || undefined}
                   aria-describedby={isName && err ? errId : undefined}
+                  list={listItems?.length ? listId : undefined}
                   className="input-refined"
                 />
+                {!!listItems?.length && (
+                  <datalist id={listId}>
+                    {listItems.map(v => <option key={v} value={v} />)}
+                  </datalist>
+                )}
               </div>
             )
           })}

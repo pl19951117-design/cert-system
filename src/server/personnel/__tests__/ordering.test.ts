@@ -1,7 +1,53 @@
 import { describe, expect, it } from 'vitest'
-import { computeInsertIndex, planSortOrder, type OrderedPerson } from '../ordering'
+import { computeInsertIndex, planRegroup, planSortOrder, type OrderedPerson } from '../ordering'
 
 const P = (orgName: string | null, manager: string | null): OrderedPerson => ({ orgName, manager })
+const R = (id: number, orgName: string | null, manager: string | null) => ({ id, orgName, manager })
+
+describe('planRegroup', () => {
+  it('把散落的同建制+同负责人聚到一起', () => {
+    const ids = planRegroup([
+      R(1, '一连', '张队'),
+      R(2, '二连', '王队'),
+      R(3, '一连', '张队'),   // 与 1 同组，应被拉到 1 后面
+      R(4, '二连', '王队'),
+      R(5, '一连', '李队'),   // 一连的另一负责人
+    ])
+    expect(ids).toEqual([1, 3, 5, 2, 4])
+  })
+
+  it('建制与负责人按首次出现顺序（不按拼音重排）', () => {
+    const ids = planRegroup([
+      R(1, '乙连', '钱队'),
+      R(2, '甲连', '孙队'),
+      R(3, '乙连', '钱队'),
+    ])
+    // 乙连先出现 → 排在甲连前面
+    expect(ids).toEqual([1, 3, 2])
+  })
+
+  it('对已归好类的数据是幂等的', () => {
+    const list = [R(1, '一连', '张队'), R(2, '一连', '张队'), R(3, '二连', '王队')]
+    expect(planRegroup(list)).toEqual([1, 2, 3])
+    expect(planRegroup(list)).toEqual(planRegroup(list))
+  })
+
+  it('空建制/空负责人也各自成组，不报错', () => {
+    const ids = planRegroup([
+      R(1, null, null),
+      R(2, '一连', '张队'),
+      R(3, '', ''),          // 与 1 同为「空/空」
+    ])
+    expect(ids).toEqual([1, 3, 2])
+  })
+
+  it('组内保持原有相对顺序', () => {
+    const ids = planRegroup([
+      R(10, 'A', 'm'), R(20, 'B', 'n'), R(30, 'A', 'm'), R(40, 'A', 'm'),
+    ])
+    expect(ids).toEqual([10, 30, 40, 20])
+  })
+})
 
 describe('computeInsertIndex', () => {
   const list: OrderedPerson[] = [

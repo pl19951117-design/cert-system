@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -35,6 +35,21 @@ export function AppSidebar({ user, account, accounts, pendingTransfers = 0 }: Pr
   const pathname = usePathname()
   const router = useRouter()
   const [showChangePwd, setShowChangePwd] = useState(false)
+  // 折叠状态存在 <html data-sidebar> 上（视觉由 CSS 驱动），这里只做切换 + 持久化
+  const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    setCollapsed(document.documentElement.getAttribute('data-sidebar') === 'collapsed')
+  }, [])
+
+  function toggleCollapsed() {
+    const next = !collapsed
+    setCollapsed(next)
+    const el = document.documentElement
+    if (next) el.setAttribute('data-sidebar', 'collapsed')
+    else el.removeAttribute('data-sidebar')
+    try { localStorage.setItem('sidebar-collapsed', next ? '1' : '0') } catch { /* 忽略 */ }
+  }
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -48,22 +63,22 @@ export function AppSidebar({ user, account, accounts, pendingTransfers = 0 }: Pr
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 w-[232px] flex flex-col sidebar-glass border-r border-white/[0.06]">
+    <aside className="app-sidebar fixed inset-y-0 left-0 z-50 flex flex-col sidebar-glass border-r border-white/[0.06]">
       {/* Brand */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/[0.06]">
+      <div className="sb-row flex items-center gap-3 px-5 py-5 border-b border-white/[0.06]">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/25">
           <svg className="w-[18px] h-[18px] text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
           </svg>
         </div>
-        <div>
+        <div className="sb-hide">
           <div className="text-[13.5px] font-bold text-white tracking-tight leading-tight">证件管理系统</div>
           <div className="text-[10px] text-slate-500 mt-0.5 tracking-wide">v3.0</div>
         </div>
       </div>
 
       {/* Account */}
-      <div className="px-4 py-3.5 border-b border-white/[0.06]">
+      <div className="sb-hide px-4 py-3.5 border-b border-white/[0.06]">
         <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-[0.1em] mb-2 px-1">当前账套</div>
         <select
           key={account}
@@ -81,24 +96,25 @@ export function AppSidebar({ user, account, accounts, pendingTransfers = 0 }: Pr
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-[0.1em] mb-2.5 px-2.5">功能导航</div>
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto overflow-x-hidden">
+        <div className="sb-hide text-[10px] font-semibold text-slate-600 uppercase tracking-[0.1em] mb-2.5 px-2.5">功能导航</div>
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
+            title={label}
             className={cn(
-              'flex items-center gap-3 px-3 py-[9px] rounded-[10px] text-[13px] font-medium transition-all duration-200',
+              'sb-row relative flex items-center gap-3 px-3 py-[9px] rounded-[10px] text-[13px] font-medium transition-all duration-200',
               isActive(href)
                 ? 'bg-gradient-to-r from-amber-500/15 to-amber-500/5 text-amber-400 shadow-sm shadow-amber-500/5'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
             )}
           >
             <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-            <span className="flex-1">{label}</span>
+            <span className="sb-hide flex-1">{label}</span>
             {href === '/transfers' && pendingTransfers > 0 && (
               <span
-                className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500/90 text-white text-[10px] font-bold flex items-center justify-center tabular-nums"
+                className="sb-badge min-w-[18px] h-[18px] px-1 rounded-full bg-red-500/90 text-white text-[10px] font-bold flex items-center justify-center tabular-nums"
                 aria-label={`${pendingTransfers} 条待办`}
               >
                 {pendingTransfers > 99 ? '99+' : pendingTransfers}
@@ -116,30 +132,50 @@ export function AppSidebar({ user, account, accounts, pendingTransfers = 0 }: Pr
               <Link
                 key={href}
                 href={href}
+                title={label}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-[9px] rounded-[10px] text-[13px] font-medium transition-all duration-200',
+                  'sb-row flex items-center gap-3 px-3 py-[9px] rounded-[10px] text-[13px] font-medium transition-all duration-200',
                   isActive(href)
                     ? 'bg-gradient-to-r from-amber-500/15 to-amber-500/5 text-amber-400 shadow-sm shadow-amber-500/5'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
                 )}
               >
                 <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-                {label}
+                <span className="sb-hide">{label}</span>
               </Link>
             ))}
           </>
         )}
       </nav>
 
+      {/* 折叠开关 */}
+      <div className="px-3 pb-1">
+        <button
+          onClick={toggleCollapsed}
+          title={collapsed ? '展开侧边栏' : '折叠侧边栏'}
+          aria-label={collapsed ? '展开侧边栏' : '折叠侧边栏'}
+          className="sb-row w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-[12px] font-medium text-slate-500 hover:text-slate-200 hover:bg-white/[0.04] transition-all"
+        >
+          <svg
+            className={cn('w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200', collapsed && 'rotate-180')}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+          </svg>
+          <span className="sb-hide">收起导航</span>
+        </button>
+      </div>
+
       {/* User */}
       <div className="p-3 border-t border-white/[0.06]">
-        <div className="flex items-center gap-3 px-2.5 py-2.5 rounded-xl hover:bg-white/[0.04] transition-colors">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 border border-slate-500/30 flex items-center justify-center flex-shrink-0">
+        <div className="sb-row flex items-center gap-3 px-2.5 py-2.5 rounded-xl hover:bg-white/[0.04] transition-colors">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 border border-slate-500/30 flex items-center justify-center flex-shrink-0"
+            title={`${user.displayName}（${user.role === 'super_admin' ? '超级管理员' : user.role === 'editor' ? '编辑员' : '查看员'}）`}>
             <span className="text-xs font-bold text-slate-200">
               {(user.displayName || user.username)[0].toUpperCase()}
             </span>
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="sb-hide flex-1 min-w-0">
             <div className="text-[12.5px] font-semibold text-slate-300 truncate">{user.displayName}</div>
             <div className="text-[10px] text-slate-600 mt-0.5">
               {user.role === 'super_admin' ? '超级管理员' : user.role === 'editor' ? '编辑员' : '查看员'}
@@ -148,7 +184,7 @@ export function AppSidebar({ user, account, accounts, pendingTransfers = 0 }: Pr
           <button
             onClick={() => setShowChangePwd(true)}
             title="修改密码"
-            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/[0.06] transition-all flex-shrink-0"
+            className="sb-hide p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/[0.06] transition-all flex-shrink-0"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
@@ -157,7 +193,7 @@ export function AppSidebar({ user, account, accounts, pendingTransfers = 0 }: Pr
           <button
             onClick={handleLogout}
             title="退出登录"
-            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/[0.06] transition-all flex-shrink-0"
+            className="sb-hide p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/[0.06] transition-all flex-shrink-0"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />

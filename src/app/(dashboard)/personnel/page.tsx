@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { toast } from '@/components/toast'
+import { apiFetch } from '@/lib/api'
 import { MultiSelect } from '@/components/MultiSelect'
 import { TableRowSkeleton } from '@/components/Skeleton'
 import { statusLabel, type CertStatusKey } from '@/lib/cert-status'
@@ -68,9 +69,9 @@ const PAGE_SIZE = 50
 
 function StatDot({ color, label, n }: { color: string; label: string; n: number }) {
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-      <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
-      {label} <span className="font-semibold text-slate-700 tabular-nums">{n}</span>
+    <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-500">
+      <span className={`w-1 h-1 rounded-full ${color}`} />
+      {label}<span className="font-semibold text-slate-700 tabular-nums ml-0.5">{n}</span>
     </span>
   )
 }
@@ -104,6 +105,7 @@ export default function PersonnelPage() {
   const [showStats, setShowStats] = useState(true)
   const [page, setPage]           = useState(1)
   const [showMoreFilters, setShowMoreFilters] = useState(false)
+  const [regrouping, setRegrouping] = useState(false)
   // 「转入转出登记」跳转过来时的添加预填
   const [addPrefill, setAddPrefill] = useState<Record<string, string> | null>(null)
 
@@ -226,6 +228,18 @@ export default function PersonnelPage() {
 
   const exportExcel = () => exportPersonnelExcel(flatRows, maps)
 
+  /** 一键把同建制、同负责人的人员重排到一起 */
+  async function regroup() {
+    setRegrouping(true)
+    try {
+      const res = await apiFetch('/api/personnel/regroup', { method: 'POST' })
+      const r = await res.json() as { total: number; moved: number }
+      toast(r.moved === 0 ? '已经是归类好的顺序' : `已归类，调整了 ${r.moved} 人的位置`, 'success')
+      await load()
+    } catch { /* toast 已弹 */ }
+    setRegrouping(false)
+  }
+
   function resetFilters() {
     setFOrg(''); setFManager(''); setFName(''); setFEducation('')
     setFAge(''); setFSocial(''); setFCertType([]); setFCertStatus('')
@@ -255,6 +269,14 @@ export default function PersonnelPage() {
           </button>
           <button onClick={() => setShowBulk(true)} className="btn-secondary !py-2 !px-3 !text-xs">
             批量更新社保
+          </button>
+          <button
+            onClick={regroup}
+            disabled={regrouping}
+            title="把同建制、同负责人的人员重新排到一起"
+            className="btn-secondary !py-2 !px-3 !text-xs disabled:opacity-60"
+          >
+            {regrouping ? '整理中…' : '按建制归类'}
           </button>
           <button onClick={() => setShowAdd(true)} className="btn-primary !py-2 !px-4 !text-sm">
             + 添加人员
@@ -365,27 +387,28 @@ export default function PersonnelPage() {
           </div>
 
           {showStats && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            // auto-fit：证件类别（A/B/C1/C2/C3）自动挤进一行，窄屏才换行
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))' }}>
               {certStats.map(s => {
                 const pct = totalCerts ? Math.round((s.total / totalCerts) * 100) : 0
                 return (
-                  <div key={s.type} className="card-elevated p-4 transition-shadow hover:shadow-md">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-[13px] font-semibold text-slate-700 truncate" title={s.type}>{s.type}</span>
-                      <span className="text-[11px] font-medium text-slate-400 tabular-nums shrink-0">{pct}%</span>
+                  <div key={s.type} className="card-elevated p-3 transition-shadow hover:shadow-md">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs font-semibold text-slate-700 truncate" title={s.type}>{s.type}</span>
+                      <span className="text-[10px] font-medium text-slate-400 tabular-nums shrink-0">{pct}%</span>
                     </div>
-                    <div className="flex items-baseline gap-1 mt-1.5">
-                      <span className="text-[26px] font-bold text-slate-900 tabular-nums leading-none">{s.total}</span>
-                      <span className="text-[11px] text-slate-400 ml-0.5">张</span>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-xl font-bold text-slate-900 tabular-nums leading-none">{s.total}</span>
+                      <span className="text-[10px] text-slate-400">张</span>
                     </div>
-                    <div className="flex h-1.5 rounded-full overflow-hidden bg-slate-100 mt-3 gap-px">
+                    <div className="flex h-1 rounded-full overflow-hidden bg-slate-100 mt-2 gap-px">
                       {s.ok > 0      && <div style={{ flexGrow: s.ok }}      className="bg-emerald-400" />}
                       {s.warning > 0 && <div style={{ flexGrow: s.warning }} className="bg-amber-400" />}
                       {s.urgent > 0  && <div style={{ flexGrow: s.urgent }}  className="bg-orange-400" />}
                       {s.expired > 0 && <div style={{ flexGrow: s.expired }} className="bg-red-500" />}
                       {s.none > 0    && <div style={{ flexGrow: s.none }}    className="bg-slate-300" />}
                     </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5">
+                    <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
                       {s.ok > 0      && <StatDot color="bg-emerald-400" label="正常" n={s.ok} />}
                       {s.warning > 0 && <StatDot color="bg-amber-400"   label="预警" n={s.warning} />}
                       {s.urgent > 0  && <StatDot color="bg-orange-400"  label="紧急" n={s.urgent} />}
@@ -549,6 +572,7 @@ export default function PersonnelPage() {
       {showAdd && (
         <AddPersonModal
           initial={addPrefill ?? undefined}
+          options={{ orgs: dropdowns.orgs, managers: dropdowns.managers }}
           onClose={() => { setShowAdd(false); setAddPrefill(null) }}
           onSaved={load}
         />
@@ -557,6 +581,7 @@ export default function PersonnelPage() {
       {editPerson && (
         <EditPersonModal
           person={editPerson}
+          options={{ orgs: dropdowns.orgs, managers: dropdowns.managers }}
           onClose={() => setEditPerson(null)}
           onSaved={load}
         />

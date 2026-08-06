@@ -48,6 +48,37 @@ export function computeInsertIndex(
 }
 
 /**
+ * 一键归类：把「当前展示顺序」重排为 建制 → 负责人 分组。
+ *
+ * - 建制按「首次出现顺序」排列（不按拼音，避免打乱用户既有的建制习惯顺序）
+ * - 同建制内的负责人同样按首次出现顺序
+ * - 同「建制+负责人」小组内保持原有相对顺序
+ * 因此对已经归好类的数据是幂等的（不会产生变化）。
+ *
+ * 返回按新顺序排列的 id 数组。
+ */
+export function planRegroup(
+  list: readonly { id: number; orgName: string | null; manager: string | null }[],
+): number[] {
+  // Map 天然保留插入顺序 → 即「首次出现顺序」
+  const byOrg = new Map<string, Map<string, number[]>>()
+  for (const p of list) {
+    const org = (p.orgName ?? '').trim()
+    const mgr = (p.manager ?? '').trim()
+    let mgrMap = byOrg.get(org)
+    if (!mgrMap) { mgrMap = new Map(); byOrg.set(org, mgrMap) }
+    const bucket = mgrMap.get(mgr)
+    if (bucket) bucket.push(p.id)
+    else mgrMap.set(mgr, [p.id])
+  }
+  const out: number[] = []
+  for (const mgrMap of byOrg.values()) {
+    for (const ids of mgrMap.values()) out.push(...ids)
+  }
+  return out
+}
+
+/**
  * 给「现有人员（按展示顺序）」做稠密重排，在 insertIndex 处为新人留出位置。
  * 返回需要写回的 { id, sortOrder } 列表（只含与当前值不同的行，最小化写入）
  * 以及新人员应使用的 sortOrder。

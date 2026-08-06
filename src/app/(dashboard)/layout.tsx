@@ -35,7 +35,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         accounts={accountIds}
         pendingTransfers={pendingTransfers}
       />
-      <main className="flex-1 ml-[232px] min-h-full overflow-x-hidden">
+      <main className="app-main flex-1 min-h-full overflow-x-hidden">
         {/*
           key={account}：切换账套时整个内容子树 remount，迫使所有客户端页面
           （personnel / alerts / exams 等）重新跑各自的 useEffect 数据加载。
