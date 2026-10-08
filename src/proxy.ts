@@ -17,5 +17,6 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // brand/：单位 logo 等公开静态资源，登录页（未登录）也要能加载
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|brand/).*)'],
 }

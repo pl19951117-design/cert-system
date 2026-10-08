@@ -17,7 +17,7 @@
     "electron": "electron .",
     "clean:next": "node -e \"const fs=require('fs');['.next','release'].forEach(d=>fs.rmSync(d,{recursive:true,force:true}))\"",
     "pack:build": "npm run clean:next && node scripts/make-icon.mjs && next build && node scripts/prepare-standalone.mjs && node scripts/make-template-db.mjs",
-    "dist": "npm run pack:build && electron-builder --win nsis"
+    "dist": "npm run icon && npm run pack:build && electron-builder --win nsis"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

@@ -8,7 +8,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" className="h-full">
+    // suppressHydrationWarning：下面的脚本会在水合前给 <html> 加 data-sidebar，属预期差异
+    <html lang="zh-CN" className="h-full" suppressHydrationWarning>
       <head>
         {/* 在首次绘制前恢复侧边栏折叠状态，避免展开→折叠的闪烁 */}
         <script

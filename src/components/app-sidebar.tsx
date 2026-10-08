@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { OPEN_PALETTE_EVENT } from '@/components/command-palette'
+import { BrandLogo } from '@/components/brand-logo'
 
 const NAV = [
   { href: '/', label: '总览看板', icon: ChartIcon },
@@ -67,11 +68,7 @@ export function AppSidebar({ user, account, accounts, pendingTransfers = 0 }: Pr
     <aside className="app-sidebar fixed inset-y-0 left-0 z-50 flex flex-col sidebar-glass border-r border-white/[0.08]">
       {/* Brand */}
       <div className="sb-row flex items-center gap-3 px-5 py-5 border-b border-white/[0.08]">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gold-300 to-gold-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-black/25 ring-1 ring-white/20">
-          <svg className="w-[18px] h-[18px] text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-          </svg>
-        </div>
+        <BrandLogo size={38} tile />
         <div className="sb-hide">
           <div className="text-[13.5px] font-bold text-white tracking-tight leading-tight">证件管理系统</div>
           <div className="text-[10px] text-gold-300/70 mt-0.5 tracking-[0.12em]">三类人员 · 证件台账</div>

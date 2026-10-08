@@ -273,29 +273,39 @@ async function clearSession() {
   }
 }
 
-// 启动画面：纯内联 HTML（data URL，瞬时加载，无需打包额外文件）。
-// 与登录页同色系，让窗口在服务冷启动期间就有品牌画面，而不是空白。
+// 启动画面：纯内联 HTML（data URL，瞬时加载）。单位 logo 从 electron/brand-logo.png 读成 base64 内嵌，
+// 不依赖尚未启动的 Next 服务。与登录页同色系（海军蓝 + 金），让冷启动期间就有品牌画面，而不是空白。
+function splashLogoDataUri() {
+  try {
+    const buf = fs.readFileSync(path.join(__dirname, 'brand-logo.png'))
+    return 'data:image/png;base64,' + buf.toString('base64')
+  } catch {
+    return ''   // 读不到 logo 时只显示文字，不影响启动
+  }
+}
+
 function splashDataUrl() {
+  const logo = splashLogoDataUri()
   const html = `<!doctype html><html><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}html,body{height:100%}
 body{display:flex;align-items:center;justify-content:center;overflow:hidden;
  font-family:-apple-system,"Segoe UI Variable","Segoe UI","Microsoft YaHei",sans-serif;
- background:radial-gradient(120% 80% at 50% 0%,#11161f 0%,#0b0e14 60%,#080a0e 100%);
- color:#e8edf4;-webkit-user-select:none;user-select:none}
+ background:radial-gradient(90% 60% at 50% 0%,rgba(201,162,39,.10),transparent 60%),
+  linear-gradient(160deg,#13335a 0%,#0f2a4a 45%,#0a1d34 100%);
+ color:#eef3fa;-webkit-user-select:none;user-select:none}
 .wrap{display:flex;flex-direction:column;align-items:center;gap:16px;animation:fade .5s ease both}
-.logo{width:62px;height:62px;border-radius:17px;display:flex;align-items:center;justify-content:center;
- background:linear-gradient(180deg,#f7ad27,#e08c0a);
- box-shadow:0 12px 32px -6px rgba(245,158,11,.5),inset 0 1px 0 rgba(255,255,255,.3)}
-.logo svg{width:31px;height:31px}
-.title{font-size:18px;font-weight:700;letter-spacing:.4px}
-.sub{font-size:11px;color:#7a8699;letter-spacing:2px;margin-top:-6px}
-.row{display:flex;align-items:center;gap:9px;margin-top:8px;color:#9aa6b6;font-size:12px}
-.spin{width:15px;height:15px;border:2px solid rgba(245,158,11,.25);border-top-color:#f59e0b;border-radius:50%;animation:rot .7s linear infinite}
+.logo{width:96px;height:96px;border-radius:24px;display:flex;align-items:center;justify-content:center;
+ background:#fff;box-shadow:0 18px 40px -10px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.25)}
+.logo img{width:78px;height:78px;object-fit:contain}
+.title{font-size:19px;font-weight:700;letter-spacing:.5px;margin-top:6px}
+.sub{font-size:11px;color:#d4b04c;letter-spacing:3px;margin-top:-6px;opacity:.85}
+.row{display:flex;align-items:center;gap:9px;margin-top:10px;color:#9cb2cf;font-size:12px}
+.spin{width:15px;height:15px;border:2px solid rgba(224,198,119,.25);border-top-color:#e0c677;border-radius:50%;animation:rot .7s linear infinite}
 @keyframes rot{to{transform:rotate(360deg)}}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 </style></head><body><div class="wrap">
-<div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.96 11.96 0 0 1 3.6 6 12 12 0 0 0 3 9.75c0 5.6 3.82 10.29 9 11.62 5.18-1.33 9-6.03 9-11.62 0-1.31-.21-2.57-.6-3.75h-.15c-3.2 0-6.1-1.25-8.25-3.29Z"/></svg></div>
-<div class="title">证件管理系统</div><div class="sub">CERTIFICATE MANAGEMENT</div>
+${logo ? `<div class="logo"><img src="${logo}" alt=""></div>` : ''}
+<div class="title">证件管理系统</div><div class="sub">三类人员 · 证件台账</div>
 <div class="row"><span class="spin"></span><span>正在启动…</span></div>
 </div></body></html>`
   return 'data:text/html;charset=utf-8,' + encodeURIComponent(html)
@@ -307,7 +317,7 @@ async function createWindow() {
     width: 1366,
     height: 860,
     show: false,
-    backgroundColor: '#0b0e14',
+    backgroundColor: '#0f2a4a',
     title: '证件管理系统',
     webPreferences: {
       contextIsolation: true,
