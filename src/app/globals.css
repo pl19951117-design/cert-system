@@ -244,6 +244,9 @@
   white-space: nowrap;
   border-bottom: 1px solid var(--line);
 }
+/* 表头默认左对齐；数字列用 text-right / text-center 时表头跟着对齐（上面的选择器优先级更高，需显式覆盖） */
+.table-premium thead th.text-right { text-align: right; }
+.table-premium thead th.text-center { text-align: center; }
 .table-premium tbody td {
   padding: 12px 16px;
   font-size: 13px;

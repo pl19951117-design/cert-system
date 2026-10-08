@@ -9,6 +9,7 @@ import { DataReportLauncher } from '@/components/data-report-modal'
 import { computeCertSocialStats } from '@/lib/cert-social-stats'
 import { CHANGE_TYPES, computeMonthlyChange, reconstructTotals } from '@/lib/change-log-stats'
 import { Sparkline } from '@/components/sparkline'
+import { computeExamStats } from '@/lib/exam-stats'
 
 function getAccount(accountIds: string[], saved?: string) {
   return accountIds.includes(saved ?? '') ? (saved as string) : (accountIds[0] ?? '')
@@ -39,13 +40,19 @@ export default async function DashboardPage() {
     )
   }
 
-  const [people, certs] = await Promise.all([
+  const [people, certs, exams] = await Promise.all([
     prisma.person.findMany({ where: { accountId: account, deletedAt: null } }),
     prisma.certificate.findMany({
       where: { deletedAt: null, person: { accountId: account, deletedAt: null } },
       include: { person: true },
     }),
+    prisma.exam.findMany({
+      where: { accountId: account },
+      select: { isPassed: true, certType: true, personId: true, regDate: true },
+    }),
   ])
+  // 考试情况（报名 / 通过率 / 按类别 / 待准入人员库）
+  const examStats = computeExamStats(exams)
 
   const expired = certs.filter(c => certStatus(c.expiryDate) === 'expired').length
   const urgent  = certs.filter(c => certStatus(c.expiryDate) === 'urgent').length
@@ -305,6 +312,91 @@ export default async function DashboardPage() {
             </table>
           )}
         </div>
+      </div>
+
+      {/* 考试情况 */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div className="section-label !mb-0">
+            <div className="section-label-bar" />
+            <span className="section-label-text">考试情况</span>
+          </div>
+          <Link href="/exams" className="text-xs text-navy-600 hover:text-navy-800 font-medium">查看考试报名 →</Link>
+        </div>
+        {examStats.total === 0 ? (
+          <div className="card-elevated p-8 text-center text-xs text-slate-400">暂无考试报名记录</div>
+        ) : (
+          <div className="card-elevated overflow-hidden">
+            <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-slate-100 border-b border-slate-100 bg-slate-50/40">
+              {[
+                { label: '报名人次', value: examStats.total, sub: `今年报名 ${examStats.thisYear} 人次`, cls: 'text-slate-900' },
+                { label: '待考', value: examStats.pending, sub: '尚未出结果', cls: 'text-slate-500' },
+                { label: '通过', value: examStats.passed + examStats.certified, sub: `其中已取证 ${examStats.certified}`, cls: 'text-emerald-600' },
+                { label: '未通过', value: examStats.failed, sub: '可安排补考', cls: 'text-red-500' },
+              ].map(k => (
+                <div key={k.label} className="p-5">
+                  <div className="text-[11px] font-bold text-slate-400 tracking-widest mb-2">{k.label}</div>
+                  <div className={`text-3xl font-extrabold tabular-nums leading-none ${k.cls}`}>{k.value}</div>
+                  <div className="text-[11px] text-slate-400 mt-2">{k.sub}</div>
+                </div>
+              ))}
+              <div className="p-5 col-span-2 md:col-span-1">
+                <div className="text-[11px] font-bold text-slate-400 tracking-widest mb-2">通过率</div>
+                <div className="text-3xl font-extrabold text-navy-700 tabular-nums leading-none">
+                  {examStats.passRate.toFixed(1)}<span className="text-xl">%</span>
+                </div>
+                <div className="text-[11px] text-slate-400 mt-2">通过 / 已出结果（{examStats.decided} 人次）</div>
+              </div>
+            </div>
+
+            {examStats.pendingAdmission > 0 && (
+              <Link href="/exams?filter=待准入"
+                className="flex items-center gap-3 px-5 py-3 border-b border-slate-100 bg-navy-50/60 hover:bg-navy-50 transition-colors group">
+                <span className="w-1.5 h-1.5 rounded-full bg-gold-500" aria-hidden="true" />
+                <span className="text-[12.5px] text-slate-700">
+                  有 <span className="font-bold text-navy-800 tabular-nums">{examStats.pendingAdmission}</span> 名考试通过人员还未准入人员库
+                </span>
+                <span className="ml-auto text-xs font-semibold text-navy-700 group-hover:translate-x-0.5 transition-transform">去处理 →</span>
+              </Link>
+            )}
+
+            <table className="w-full table-premium">
+              <thead>
+                <tr>
+                  <th>证件类别</th>
+                  <th className="text-right">报名</th>
+                  <th className="text-right">待考</th>
+                  <th className="text-right">通过</th>
+                  <th className="text-right">未通过</th>
+                  <th className="text-right w-[28%]">通过率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {examStats.byType.map(r => (
+                  <tr key={r.type}>
+                    <td className="font-medium text-slate-800">{r.type}</td>
+                    <td className="text-right tabular-nums">{r.total}</td>
+                    <td className="text-right tabular-nums text-slate-500">{r.pending}</td>
+                    <td className="text-right tabular-nums text-emerald-700">{r.passed}</td>
+                    <td className="text-right tabular-nums text-red-500">{r.failed}</td>
+                    <td className="text-right">
+                      {r.passed + r.failed === 0 ? (
+                        <span className="text-xs text-slate-400">暂无结果</span>
+                      ) : (
+                        <div className="flex items-center gap-2 justify-end">
+                          <div className="flex-1 max-w-[180px] h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div className="h-full rounded-full bg-navy-600" style={{ width: `${Math.min(100, r.passRate)}%` }} aria-hidden="true" />
+                          </div>
+                          <span className="tabular-nums text-xs font-semibold text-slate-700 w-12 text-right">{r.passRate.toFixed(1)}%</span>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* 每月新增 / 减少证件柱状图 */}

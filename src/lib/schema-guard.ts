@@ -27,6 +27,9 @@ export async function ensureSoftDeleteSchema(): Promise<void> {
 
   if (!(await hasColumn('Exam', 'certId')))
     await prisma.$executeRawUnsafe(`ALTER TABLE "Exam" ADD COLUMN "certId" INTEGER`)
+  // Exam.idCard：报名时记录身份证号，「准入人员库」时直接带入（v0.7.0 新增）
+  if (!(await hasColumn('Exam', 'idCard')))
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Exam" ADD COLUMN "idCard" TEXT`)
 
   // Account.sortOrder：自定义账套显示顺序（NULL 退化为按 createdAt 排）
   if (!(await hasColumn('Account', 'sortOrder')))

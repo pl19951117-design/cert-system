@@ -147,6 +147,7 @@ model Exam {
   orgName    String?
   manager    String?
   name       String?
+  idCard     String?
   certType   String?
   regDate    String?
   isPassed   String  @default("待考")

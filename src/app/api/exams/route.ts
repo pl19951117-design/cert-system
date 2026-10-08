@@ -18,6 +18,7 @@ export const POST = route({ roles: WRITER_ROLES }, async ({ req, accountId, sess
       orgName: body.orgName || null,
       manager: body.manager || null,
       name: body.name || null,
+      idCard: typeof body.idCard === 'string' ? body.idCard.trim() || null : null,
       certType: body.certType || null,
       regDate: body.regDate || null,
       isPassed: body.isPassed || '待考',
