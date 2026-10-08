@@ -289,7 +289,7 @@ export default function PersonDetailPage() {
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">人员信息</span>
               {!editingPerson && (
-                <button onClick={startEditPerson} className="text-xs text-amber-500 hover:text-amber-600 font-medium">编辑</button>
+                <button onClick={startEditPerson} className="text-xs text-navy-600 hover:text-navy-800 font-medium">编辑</button>
               )}
             </div>
             {editingPerson ? (
@@ -333,7 +333,7 @@ export default function PersonDetailPage() {
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">证件列表</span>
               <button
                 onClick={() => { setShowAddCert(true); setCertForm({}) }}
-                className="text-xs text-amber-500 hover:text-amber-600 font-medium"
+                className="text-xs text-navy-600 hover:text-navy-800 font-medium"
               >
                 + 添加证件
               </button>
@@ -369,7 +369,7 @@ export default function PersonDetailPage() {
                           <button onClick={() => setHistoryCertId(c.id)} className="text-xs text-slate-400 hover:text-blue-500">历史</button>
                           <button
                             onClick={() => { setEditingCert(c); setEditCertForm({ certType: c.certType || '', certNo: c.certNo || '', issueDate: c.issueDate || '', expiryDate: c.expiryDate || '', issuer: c.issuer || '' }) }}
-                            className="text-xs text-slate-400 hover:text-amber-500"
+                            className="text-xs text-slate-400 hover:text-navy-700"
                           >编辑</button>
                           {confirmDelCert === c.id ? (
                             <>
@@ -392,7 +392,7 @@ export default function PersonDetailPage() {
                               <button
                                 onClick={() => triggerUpload(c.id)}
                                 disabled={uploadingCertId === c.id}
-                                className="text-xs text-amber-500 hover:text-amber-600 font-medium disabled:opacity-50"
+                                className="text-xs text-navy-600 hover:text-navy-800 font-medium disabled:opacity-50"
                               >
                                 {uploadingCertId === c.id ? '上传中…' : '+ 上传附件'}
                               </button>
@@ -405,11 +405,11 @@ export default function PersonDetailPage() {
                                   <div key={a.id} className="flex items-center gap-2 text-xs bg-slate-50 rounded-lg px-2.5 py-1.5">
                                     <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
                                     <a href={`/api/personnel/${personId}/attachments/${a.id}`}
-                                       className="flex-1 truncate text-slate-600 hover:text-amber-600 hover:underline" title={a.fileName || ''}>
+                                       className="flex-1 truncate text-slate-600 hover:text-navy-700 hover:underline" title={a.fileName || ''}>
                                       {a.fileName || `附件 ${a.id}`}
                                     </a>
                                     <button onClick={() => openPreview(a)} disabled={previewLoadingId === a.id}
-                                       className="text-slate-400 hover:text-amber-600 flex-shrink-0 disabled:opacity-50">
+                                       className="text-slate-400 hover:text-navy-700 flex-shrink-0 disabled:opacity-50">
                                       {previewLoadingId === a.id ? '加载…' : '预览'}
                                     </button>
                                     {confirmDelAtt === a.id ? (
@@ -507,7 +507,7 @@ export default function PersonDetailPage() {
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
               <span className="text-sm font-semibold text-slate-700 truncate" title={preview.fileName}>{preview.fileName}</span>
               <div className="flex items-center gap-4 flex-shrink-0">
-                <a href={preview.url} download={preview.fileName} className="text-xs text-amber-500 hover:text-amber-600 font-medium">下载</a>
+                <a href={preview.url} download={preview.fileName} className="text-xs text-navy-600 hover:text-navy-800 font-medium">下载</a>
                 <button onClick={closePreview} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
               </div>
             </div>

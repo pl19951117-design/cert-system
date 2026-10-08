@@ -269,7 +269,7 @@ export default function TransfersPage() {
           </div>
           {tab === 'pending' && (
             <button onClick={() => { setShowAdd(true); setForm({ direction: 'in' }) }}
-              className="mt-3 text-xs text-amber-500 hover:text-amber-600 font-semibold">
+              className="mt-3 text-xs text-navy-600 hover:text-navy-800 font-semibold">
               + 登记第一条
             </button>
           )}
@@ -309,14 +309,14 @@ export default function TransfersPage() {
                       <div className="flex items-center gap-3">
                         {p.status === 'pending' ? (
                           <>
-                            <button onClick={() => goHandle(p)} className="text-xs text-amber-500 hover:text-amber-600 font-semibold">
+                            <button onClick={() => goHandle(p)} className="text-xs text-navy-600 hover:text-navy-800 font-semibold">
                               {p.direction === 'in' ? '去添加' : '去处理'}
                             </button>
                             <button onClick={() => setStatus(p, 'done')} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">完成</button>
                             <button onClick={() => startEdit(p)} className="text-xs text-slate-400 hover:text-slate-600">编辑</button>
                           </>
                         ) : (
-                          <button onClick={() => setStatus(p, 'pending')} className="text-xs text-slate-400 hover:text-amber-600">重新打开</button>
+                          <button onClick={() => setStatus(p, 'pending')} className="text-xs text-slate-400 hover:text-navy-700">重新打开</button>
                         )}
                         {confirmDel === p.id ? (
                           <span className="flex items-center gap-2">

@@ -248,7 +248,7 @@ export default function ExamsPage() {
                   </td>
                   <td>
                     <div className="flex items-center gap-3">
-                      <button onClick={() => startEdit(exam)} className="text-xs text-amber-500 hover:text-amber-600 font-medium">编辑</button>
+                      <button onClick={() => startEdit(exam)} className="text-xs text-navy-600 hover:text-navy-800 font-medium">编辑</button>
                       {confirmDel === exam.id ? (
                         <><button onClick={() => deleteExam(exam.id)} className="text-xs text-red-500 font-semibold">确认</button>
                         <button onClick={() => setConfirmDel(null)} className="text-xs text-slate-400">取消</button></>

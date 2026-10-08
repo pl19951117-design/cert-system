@@ -113,7 +113,7 @@ export default function CompliancePage() {
                     {data!.nonCompliant.map(r => (
                       <tr key={r.personId}>
                         <td className="font-medium text-slate-800">
-                          <Link href={`/personnel/${r.personId}`} className="hover:text-amber-600 hover:underline">{r.name}</Link>
+                          <Link href={`/personnel/${r.personId}`} className="hover:text-navy-700 hover:underline">{r.name}</Link>
                         </td>
                         <td className="text-xs">{r.orgName || '—'}</td>
                         <td>

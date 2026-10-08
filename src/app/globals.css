@@ -3,6 +3,31 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* 品牌色板（方向 C · 政企沉稳）：海军蓝为主、金色点睛。
+   生成 Tailwind 工具类：text-navy-700 / bg-gold-500 / border-navy-200 … */
+@theme {
+  --color-navy-50:  #f3f6fa;
+  --color-navy-100: #e4ebf4;
+  --color-navy-200: #c7d4e5;
+  --color-navy-300: #9cb2cf;
+  --color-navy-400: #6b8bb3;
+  --color-navy-500: #456b97;
+  --color-navy-600: #2d5282;
+  --color-navy-700: #1f416b;
+  --color-navy-800: #163456;
+  --color-navy-900: #0f2a4a;
+  --color-navy-950: #0a1d34;
+
+  --color-gold-50:  #fbf8ee;
+  --color-gold-100: #f5eed4;
+  --color-gold-200: #ecdca6;
+  --color-gold-300: #e0c677;
+  --color-gold-400: #d4b04c;
+  --color-gold-500: #c9a227;
+  --color-gold-600: #a8861d;
+  --color-gold-700: #866a17;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -117,8 +142,9 @@
 }
 
 /* ============================================================
-   Premium design tokens — "modern enterprise" (Linear · Vercel · Apple)
-   Refined neutral foundation + a single deliberate gold accent.
+   Design tokens — 方向 C「政企沉稳」
+   沉稳的海军蓝承担主操作与导航，金色只用于点睛（标题条、选中态、品牌标）。
+   琥珀色保留给「预警」语义，不再作品牌色，避免和状态色混淆。
    ============================================================ */
 :root {
   /* Typeface: prefer each OS's best UI face for Latin, then high-quality CJK.
@@ -142,11 +168,16 @@
   --line: rgba(15, 23, 42, 0.07);
   --line-strong: rgba(15, 23, 42, 0.11);
 
-  /* Brand gold — used deliberately, not everywhere */
-  --brand: #f59e0b;
-  --brand-strong: #d97706;
-  --brand-ink: #b45309;
-  --brand-tint: rgba(245, 158, 11, 0.10);
+  /* Brand navy — 主操作、链接、焦点 */
+  --brand: #1f416b;
+  --brand-strong: #0f2a4a;
+  --brand-ink: #163456;
+  --brand-tint: rgba(31, 65, 107, 0.12);
+
+  /* Accent gold — 点睛，克制使用 */
+  --gold: #c9a227;
+  --gold-strong: #a8861d;
+  --gold-soft: #e0c677;
 
   /* Soft, layered elevation (Apple-style depth) */
   --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
@@ -171,8 +202,8 @@
     /* Whisper-soft canvas with a barely-there top sheen for depth */
     background-color: var(--canvas);
     background-image:
-      radial-gradient(1200px 600px at 78% -10%, rgba(245, 158, 11, 0.045), transparent 60%),
-      linear-gradient(180deg, #f7f8fa 0%, var(--canvas) 100%);
+      radial-gradient(1200px 600px at 78% -10%, rgba(31, 65, 107, 0.05), transparent 60%),
+      linear-gradient(180deg, #f6f7f9 0%, var(--canvas) 100%);
     background-attachment: fixed;
     font-feature-settings: "cv02", "cv03", "cv04", "ss01";
   }
@@ -182,7 +213,7 @@
   }
   /* A refined, accessible focus ring across the whole app */
   :focus-visible {
-    outline: 2px solid color-mix(in oklch, var(--brand) 70%, transparent);
+    outline: 2px solid color-mix(in oklch, var(--brand) 55%, transparent);
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -229,6 +260,15 @@
 .table-premium tbody tr:hover {
   background-color: #f8fafc;
 }
+/* 紧凑表格：列多的数据表用，单元格不折行（超宽时横向滚动），避免姓名/日期被断成两行 */
+.table-compact thead th,
+.table-compact tbody td {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.table-compact tbody td {
+  white-space: nowrap;
+}
 
 /* Status badges — soft, refined pills */
 .badge {
@@ -241,6 +281,7 @@
   letter-spacing: 0.01em;
   border: 1px solid transparent;
   line-height: 1.4;
+  white-space: nowrap;
 }
 .badge-red { background: #fef2f2; color: #dc2626; border-color: #fecdd3; }
 .badge-orange { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
@@ -248,12 +289,14 @@
 .badge-green { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
 .badge-blue { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
 .badge-slate { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
+.badge-navy { background: #f3f6fa; color: #1f416b; border-color: #c7d4e5; }
+.badge-gold { background: #fbf8ee; color: #866a17; border-color: #ecdca6; }
 
 /* Frosted modal overlay + refined entrance */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 70;            /* 高于详情抽屉（60），抽屉里点「编辑」时弹窗在最上层 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -281,6 +324,109 @@
   to { opacity: 1; transform: none; }
 }
 
+/* 右侧详情抽屉 */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(10, 29, 52, 0.28);
+  backdrop-filter: blur(2px);
+  animation: overlayIn 0.18s ease both;
+}
+.drawer-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(460px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  box-shadow: -24px 0 60px -20px rgba(10, 29, 52, 0.35);
+  animation: drawerIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes drawerIn {
+  from { transform: translateX(28px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* 分段切换（分组视图 / 列表视图） */
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: #eef1f5;
+  border: 1px solid var(--line);
+}
+.segmented button {
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--brand-strong);
+  font-weight: 600;
+  box-shadow: var(--shadow-xs);
+}
+
+/* 分组表头行（按建制） */
+.table-premium tbody tr.group-row td {
+  background: #f3f6fa;
+  border-top: 1px solid #e4ebf4;
+  border-bottom: 1px solid #e4ebf4;
+  padding: 10px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.table-premium tbody tr.group-row:hover td {
+  background: #ebf0f7;
+}
+
+/* 全局搜索面板（Ctrl+K） */
+.palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 16px 16px;
+  background: rgba(10, 29, 52, 0.32);
+  backdrop-filter: blur(6px);
+  animation: overlayIn 0.15s ease both;
+}
+.palette-card {
+  width: 100%;
+  max-width: 620px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  animation: cardIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  background: #fafbfc;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  line-height: 1;
+}
+
 /* Form inputs */
 .input-refined {
   width: 100%;
@@ -304,27 +450,27 @@
   box-shadow: 0 0 0 3.5px var(--brand-tint);
 }
 
-/* Primary button — refined "machined gold", soft vertical sheen, restrained glow */
+/* Primary button — 深海军蓝，柔和的纵向光泽 + 克制的投影 */
 .btn-primary {
   padding: 9px 18px;
   border-radius: 10px;
-  background: linear-gradient(180deg, #f7ad27 0%, #ef9810 50%, #e08c0a 100%);
+  background: linear-gradient(180deg, #24497a 0%, #1a3a63 55%, #13304f 100%);
   color: #fff;
   font-size: 13.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
   transition: filter 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
   box-shadow:
-    0 1px 2px rgba(180, 83, 9, 0.30),
-    0 2px 8px -2px rgba(217, 119, 6, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.30);
+    0 1px 2px rgba(10, 29, 52, 0.30),
+    0 2px 8px -2px rgba(15, 42, 74, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 .btn-primary:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.12);
   box-shadow:
-    0 2px 4px rgba(180, 83, 9, 0.30),
-    0 6px 16px -4px rgba(217, 119, 6, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+    0 2px 4px rgba(10, 29, 52, 0.30),
+    0 6px 16px -4px rgba(15, 42, 74, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
   transform: translateY(-0.5px);
 }
 .btn-primary:active {
@@ -356,12 +502,28 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* Sidebar — deep, near-black graphite with a faint warm cast to harmonise with gold */
+/* Sidebar — 深海军蓝，顶部一抹极淡的金色光晕 */
 .sidebar-glass {
   background:
-    radial-gradient(120% 60% at 50% 0%, rgba(245, 158, 11, 0.06), transparent 55%),
-    linear-gradient(180deg, #0b0e14 0%, #0c0f16 55%, #0a0d12 100%);
+    radial-gradient(120% 50% at 50% 0%, rgba(201, 162, 39, 0.08), transparent 55%),
+    linear-gradient(180deg, #102b4c 0%, #0d2441 55%, #0a1d34 100%);
 }
+/* 侧栏选中项：左侧金色细条 + 浅色底 */
+.nav-active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.nav-active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+}
+.nav-active svg { color: var(--gold-soft); }
 
 /* KPI card shine */
 .kpi-card {
@@ -380,7 +542,7 @@
   right: 0;
   width: 140px;
   height: 140px;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(31, 65, 107, 0.05) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -400,7 +562,7 @@
 .page-header-bar {
   width: 3px;
   border-radius: 3px;
-  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-strong) 100%);
+  background: linear-gradient(180deg, var(--gold-soft) 0%, var(--gold-strong) 100%);
   flex-shrink: 0;
 }
 
@@ -425,7 +587,7 @@
   width: 3px;
   height: 13px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--brand), var(--brand-strong));
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold-strong));
 }
 .section-label-text {
   font-size: 11px;
@@ -456,8 +618,8 @@
 
 /* Selection */
 ::selection {
-  background: rgba(245, 158, 11, 0.18);
-  color: #7c2d12;
+  background: rgba(31, 65, 107, 0.16);
+  color: #0f2a4a;
 }
 
 /* ============ 侧边栏折叠 ============

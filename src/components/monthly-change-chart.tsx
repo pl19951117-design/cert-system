@@ -24,9 +24,9 @@ export function MonthlyChangeChart({ data }: Props) {
         <div className="section-label-bar" />
         <span className="section-label-text">每月新增 / 减少证件（近 12 个月）</span>
         <span className="ml-auto text-[11px] text-slate-400">
-          合计 <span className="text-emerald-600 font-semibold">+{totalAdded}</span>
+          合计 <span className="text-navy-700 font-semibold">+{totalAdded}</span>
           <span className="mx-1">/</span>
-          <span className="text-red-500 font-semibold">−{totalRemoved}</span>
+          <span className="text-gold-600 font-semibold">−{totalRemoved}</span>
           <span className="ml-1">本</span>
         </span>
       </div>
@@ -47,6 +47,7 @@ export function MonthlyChangeChart({ data }: Props) {
             />
             <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
             <Tooltip
+              cursor={{ fill: 'rgba(31,65,107,0.05)' }}
               labelFormatter={(label) => {
                 const s = String(label ?? '')
                 if (!/^\d{4}-\d{2}/.test(s)) return s
@@ -55,8 +56,8 @@ export function MonthlyChangeChart({ data }: Props) {
               formatter={(v, name) => [`${v} 本`, name]}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="added" name="新增" fill="#10b981" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="removed" name="减少" fill="#ef4444" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="added" name="新增" fill="#1f416b" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="removed" name="减少" fill="#c9a227" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}

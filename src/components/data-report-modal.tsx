@@ -147,7 +147,7 @@ export function DataReportModal({ onClose }: { onClose: () => void }) {
           <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">统计月份（影响「转入 / 转出」）</div>
           <div className="flex items-end gap-3 flex-wrap">
             <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
-              <input type="checkbox" checked={allTime} onChange={e => setAllTime(e.target.checked)} className="accent-amber-500 cursor-pointer" />
+              <input type="checkbox" checked={allTime} onChange={e => setAllTime(e.target.checked)} className="accent-navy-700 cursor-pointer" />
               全部时间
             </label>
             <div className={allTime ? 'opacity-40 pointer-events-none' : ''}>

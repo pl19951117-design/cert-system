@@ -117,7 +117,7 @@ export function LanSharing() {
                     <div key={u.address} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
                       <code className="flex-1 font-mono text-sm text-slate-800">{u.url}</code>
                       <span className="text-[11px] text-slate-400 truncate max-w-[140px]" title={u.name}>{u.name}</span>
-                      <button onClick={() => copy(u.url)} className="text-xs text-amber-500 hover:text-amber-600 font-semibold whitespace-nowrap">
+                      <button onClick={() => copy(u.url)} className="text-xs text-navy-600 hover:text-navy-800 font-semibold whitespace-nowrap">
                         复制
                       </button>
                     </div>

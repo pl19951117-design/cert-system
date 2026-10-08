@@ -141,7 +141,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label={closeLabel}
-            className="text-slate-400 hover:text-slate-600 text-xl leading-none focus-visible:outline-2 focus-visible:outline-amber-400 rounded"
+            className="text-slate-400 hover:text-slate-600 text-xl leading-none focus-visible:outline-2 focus-visible:outline-navy-400 rounded"
           >
             ×
           </button>

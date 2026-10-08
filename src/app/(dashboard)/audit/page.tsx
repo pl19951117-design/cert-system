@@ -73,7 +73,7 @@ export default function AuditPage() {
       <div className="filter-bar flex items-center gap-3">
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="搜索操作人 / 动作 / 对象…"
           className="input-refined !w-64 !py-1.5 !px-3 !text-xs" />
-        {q && <button onClick={() => setQ('')} className="text-xs text-amber-500 hover:text-amber-600 font-medium">清除</button>}
+        {q && <button onClick={() => setQ('')} className="text-xs text-navy-600 hover:text-navy-800 font-medium">清除</button>}
       </div>
 
       {loading ? (

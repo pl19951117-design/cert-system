@@ -145,7 +145,7 @@ export function MultiSelect({
             <button
               type="button"
               onClick={() => onChange([])}
-              className="w-full text-left px-3 py-1.5 text-[11px] text-amber-500 hover:bg-slate-50 font-medium border-b border-slate-100"
+              className="w-full text-left px-3 py-1.5 text-[11px] text-navy-600 hover:bg-slate-50 font-medium border-b border-slate-100"
             >
               清除选择
             </button>
@@ -158,7 +158,7 @@ export function MultiSelect({
             aria-activedescendant={activeIdx >= 0 ? `${listId}-opt-${activeIdx}` : undefined}
             tabIndex={-1}
             onKeyDown={onListKey}
-            className="max-h-60 overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-amber-300 rounded"
+            className="max-h-60 overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-navy-300 rounded"
           >
             {options.length === 0 ? (
               <li className="px-3 py-2 text-xs text-slate-400" role="presentation">无选项</li>
@@ -179,7 +179,7 @@ export function MultiSelect({
                   <span
                     aria-hidden="true"
                     className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
-                      checked ? 'bg-amber-500 border-amber-500' : 'border-slate-300 bg-white'
+                      checked ? 'bg-navy-700 border-navy-700' : 'border-slate-300 bg-white'
                     }`}
                   >
                     {checked && (

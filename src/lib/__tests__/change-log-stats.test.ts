@@ -3,6 +3,7 @@ import {
   CHANGE_TYPES,
   computeChangeStats,
   computeMonthlyChange,
+  reconstructTotals,
   todayYMD,
   type ChangeLogRow,
 } from '../change-log-stats'
@@ -119,5 +120,34 @@ describe('todayYMD', () => {
   it('给定日期 → 本地 YYYY-MM-DD', () => {
     expect(todayYMD(new Date(2026, 0, 3))).toBe('2026-01-03')
     expect(todayYMD(new Date(2026, 11, 31))).toBe('2026-12-31')
+  })
+})
+
+describe('computeMonthlyChange · kinds（人员口径）', () => {
+  it('传入入职/离职时只统计人员流水', () => {
+    const now = new Date(2026, 4, 15)
+    const out = computeMonthlyChange([
+      R(CHANGE_TYPES.PERSON_ADD, null, '2026-05-02'),
+      R(CHANGE_TYPES.PERSON_ADD, null, '2026-05-03'),
+      R(CHANGE_TYPES.PERSON_REMOVE, null, '2026-05-04'),
+      R(CHANGE_TYPES.CERT_ADD, 'C1', '2026-05-05'),
+    ], { now, months: 1, kinds: { add: CHANGE_TYPES.PERSON_ADD, remove: CHANGE_TYPES.PERSON_REMOVE } })
+    expect(out[0]).toEqual({ month: '2026-05', added: 2, removed: 1 })
+  })
+})
+
+describe('reconstructTotals', () => {
+  it('由当前总数倒推每月末总数，末项即当前', () => {
+    expect(reconstructTotals(100, [
+      { added: 5, removed: 0 },
+      { added: 0, removed: 3 },
+      { added: 10, removed: 2 },
+    ])).toEqual([95, 92, 100])
+  })
+  it('空数组 → 空', () => {
+    expect(reconstructTotals(10, [])).toEqual([])
+  })
+  it('流水不全导致倒推为负时截到 0', () => {
+    expect(reconstructTotals(2, [{ added: 0, removed: 0 }, { added: 5, removed: 0 }])).toEqual([0, 2])
   })
 })

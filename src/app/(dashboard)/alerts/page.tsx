@@ -113,7 +113,7 @@ export default function AlertsPage() {
           <button
             key={k.key}
             onClick={() => setStatusFilter(statusFilter === k.key ? 'alert' : k.key)}
-            className={`card-elevated kpi-card border-l-[3px] ${k.border} p-4 text-left transition-all ${statusFilter === k.key ? 'ring-2 ring-amber-400' : 'hover:shadow-md'}`}
+            className={`card-elevated kpi-card border-l-[3px] ${k.border} p-4 text-left transition-all ${statusFilter === k.key ? 'ring-2 ring-navy-400' : 'hover:shadow-md'}`}
           >
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{k.label}</div>
             <div className="text-3xl font-extrabold tabular-nums" style={{ color: k.color }}>{k.count}</div>
@@ -172,7 +172,7 @@ export default function AlertsPage() {
                     <td>{c.person.orgName || '—'}</td>
                     <td>{c.person.manager || '—'}</td>
                     <td className="font-medium text-slate-800">
-                      <Link href={`/personnel/${c.personId}`} className="hover:text-amber-600 hover:underline">{c.person.name}</Link>
+                      <Link href={`/personnel/${c.personId}`} className="hover:text-navy-700 hover:underline">{c.person.name}</Link>
                     </td>
                     <td>{c.certType || '—'}</td>
                     <td className="font-mono text-xs text-slate-500">{c.certNo || '—'}</td>

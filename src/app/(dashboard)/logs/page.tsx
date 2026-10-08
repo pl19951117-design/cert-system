@@ -300,7 +300,7 @@ export default function LogsPage() {
           {CHANGE_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         {(search || typeFilter || monthFilter) && (
-          <button onClick={() => { setSearch(''); setTypeFilter(''); setMonthFilter('') }} className="text-xs text-amber-500 hover:text-amber-600 font-medium">清除</button>
+          <button onClick={() => { setSearch(''); setTypeFilter(''); setMonthFilter('') }} className="text-xs text-navy-600 hover:text-navy-800 font-medium">清除</button>
         )}
 
         {/* 批量删除控件：有选中时才显示 */}
@@ -371,7 +371,7 @@ export default function LogsPage() {
                     checked={allVisibleSelected}
                     ref={el => { if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected }}
                     onChange={toggleAllVisible}
-                    className="cursor-pointer accent-amber-500"
+                    className="cursor-pointer accent-navy-700"
                   />
                 </th>
                 {['变动类型','变动日期','建制','负责人','姓名','证件类别','证件编号','到期日期','操作'].map(h => (
@@ -383,14 +383,14 @@ export default function LogsPage() {
               {tableRows.map(log => {
                 const checked = selected.has(log.id)
                 return (
-                <tr key={log.id} className={checked ? 'bg-amber-50/30' : ''}>
+                <tr key={log.id} className={checked ? 'bg-navy-50/70' : ''}>
                   <td className="w-8 px-3">
                     <input
                       type="checkbox"
                       aria-label={`选择 ${log.name || '记录'}`}
                       checked={checked}
                       onChange={() => toggleOne(log.id)}
-                      className="cursor-pointer accent-amber-500"
+                      className="cursor-pointer accent-navy-700"
                     />
                   </td>
                   <td>
@@ -407,7 +407,7 @@ export default function LogsPage() {
                   <td className="text-xs">{log.expiryDate || '—'}</td>
                   <td>
                     <div className="flex items-center gap-3">
-                      <button onClick={() => startEdit(log)} className="text-xs text-amber-500 hover:text-amber-600 font-medium">编辑</button>
+                      <button onClick={() => startEdit(log)} className="text-xs text-navy-600 hover:text-navy-800 font-medium">编辑</button>
                       {confirmDel === log.id ? (
                         <span className="flex items-center gap-2">
                           <button onClick={() => deleteLog(log.id)} className="text-xs text-red-500 font-semibold">确认</button>

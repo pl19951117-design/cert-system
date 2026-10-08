@@ -64,10 +64,17 @@ export function computeChangeStats(rows: readonly ChangeLogRow[]): ChangeStats {
  */
 export function computeMonthlyChange(
   rows: readonly ChangeLogRow[],
-  options: { now?: Date; months?: number } = {},
+  options: {
+    now?: Date
+    months?: number
+    /** 计哪两种流水类型为「新增 / 减少」，默认证件口径；传入入职/离职即为人员口径 */
+    kinds?: { add: string; remove: string }
+  } = {},
 ): MonthlyPoint[] {
   const months = options.months ?? 12
   const now = options.now ?? new Date()
+  const addType = options.kinds?.add ?? CHANGE_TYPES.CERT_ADD
+  const removeType = options.kinds?.remove ?? CHANGE_TYPES.CERT_REMOVE
 
   // 生成最近 N 个月（含当月）的 YYYY-MM 键（从旧到新）
   const keys: string[] = []
@@ -79,8 +86,8 @@ export function computeMonthlyChange(
   const out: MonthlyPoint[] = keys.map(m => ({ month: m, added: 0, removed: 0 }))
 
   for (const r of rows) {
-    const isAdd = r.changeType === CHANGE_TYPES.CERT_ADD
-    const isRem = r.changeType === CHANGE_TYPES.CERT_REMOVE
+    const isAdd = r.changeType === addType
+    const isRem = r.changeType === removeType
     if (!isAdd && !isRem) continue
     if (!r.changeDate || !/^\d{4}-\d{2}-\d{2}$/.test(r.changeDate)) continue
     const key = r.changeDate.slice(0, 7)
@@ -88,6 +95,23 @@ export function computeMonthlyChange(
     if (i === undefined) continue
     if (isAdd) out[i].added++
     else       out[i].removed++
+  }
+  return out
+}
+
+/**
+ * 由「当前总数」和逐月增减倒推每个月末的总数（从旧到新，最后一项即当前总数）。
+ * 用于看板趋势小图；流水不全时可能偏差，结果最低截到 0。
+ */
+export function reconstructTotals(
+  currentTotal: number,
+  points: readonly { added: number; removed: number }[],
+): number[] {
+  const out = new Array<number>(points.length)
+  let total = currentTotal
+  for (let i = points.length - 1; i >= 0; i--) {
+    out[i] = Math.max(0, total)
+    total -= points[i].added - points[i].removed
   }
   return out
 }

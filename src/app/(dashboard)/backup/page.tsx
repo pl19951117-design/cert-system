@@ -127,7 +127,7 @@ export default function BackupPage() {
 
       <div className="filter-bar !p-4 mb-5 text-xs text-slate-500 leading-relaxed">
         附件已改为存放在磁盘（不再占用数据库）。下方<span className="font-semibold text-slate-600">自动备份只含数据库</span>，可防误改/误删；
-        要完整保全（含证件附件），请点<span className="font-semibold text-amber-600">「导出完整备份（含附件）」</span>，把生成的 zip 另存到 U 盘或其他电脑，以防本机损坏。
+        要完整保全（含证件附件），请点<span className="font-semibold text-navy-700">「导出完整备份（含附件）」</span>，把生成的 zip 另存到 U 盘或其他电脑，以防本机损坏。
         {desktop && '恢复：下表可恢复数据库；「从文件恢复」可选择 .db 或完整 zip（zip 会一并还原附件）。'}
         {info && <div className="mt-1 text-slate-400 break-all">备份目录：{info.backupsDir}</div>}
       </div>
@@ -138,7 +138,7 @@ export default function BackupPage() {
           <span className="section-label-text">备份列表 · 共 {info?.backups.length ?? 0} 份</span>
         </div>
         {desktop && (
-          <button onClick={restoreFromFile} className="text-xs text-amber-500 hover:text-amber-600 font-medium">
+          <button onClick={restoreFromFile} className="text-xs text-navy-600 hover:text-navy-800 font-medium">
             从文件恢复…
           </button>
         )}
@@ -168,7 +168,7 @@ export default function BackupPage() {
                     <td>
                       <div className="flex items-center gap-3">
                         <a href={`/api/backup/download?file=${encodeURIComponent(b.fileName)}`}
-                          className="text-xs text-slate-400 hover:text-amber-600 font-medium">下载</a>
+                          className="text-xs text-slate-400 hover:text-navy-700 font-medium">下载</a>
                         {confirmRestore === b.fileName ? (
                           <>
                             <button onClick={() => doRestore(b.fileName)} disabled={busy}

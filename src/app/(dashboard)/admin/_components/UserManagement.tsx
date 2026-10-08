@@ -21,7 +21,7 @@ const ROLE_LABEL: Record<string, string> = {
   viewer: '查看员',
 }
 const ROLE_BADGE: Record<string, string> = {
-  super_admin: 'badge-amber',
+  super_admin: 'badge-gold',
   editor: 'badge-blue',
   viewer: 'badge-slate',
 }
@@ -124,7 +124,7 @@ export function UserManagement({ currentUserId }: { currentUserId: number }) {
                 return (
                   <tr key={u.id} className={!u.isActive ? 'opacity-50' : ''}>
                     <td className="font-mono text-xs font-semibold text-slate-700">
-                      {u.username}{isSelf && <span className="ml-1.5 text-[10px] text-amber-500">（我）</span>}
+                      {u.username}{isSelf && <span className="ml-1.5 text-[10px] text-gold-600">（我）</span>}
                     </td>
                     <td className="text-slate-700">{u.displayName}</td>
                     <td>
@@ -150,7 +150,7 @@ export function UserManagement({ currentUserId }: { currentUserId: number }) {
                     <td className="text-xs text-slate-400">{u.createdAt.slice(0, 10)}</td>
                     <td>
                       <div className="flex items-center gap-3">
-                        <button onClick={() => { setResetFor(u); setNewPwd('') }} className="text-xs text-amber-500 hover:text-amber-600 font-medium">重置密码</button>
+                        <button onClick={() => { setResetFor(u); setNewPwd('') }} className="text-xs text-navy-600 hover:text-navy-800 font-medium">重置密码</button>
                         {!isSelf && (
                           u.isActive
                             ? <button onClick={() => updateUser(u, { isActive: false }, '已停用')} className="text-xs text-slate-400 hover:text-orange-500">停用</button>

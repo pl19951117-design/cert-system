@@ -7,10 +7,10 @@ type Props = {
   ageData: { name: string; value: number }[]
 }
 
-// 品牌色系：金主导 + 柔和辅色（与整体「石墨+金」风格一致）
-const PIE_COLORS = ['#f59e0b', '#64748b', '#38bdf8', '#34d399', '#a78bfa', '#fb7185']
-// 年龄结构：单色系暖金渐变（浅→深 = 年轻→年长），比彩虹色更整洁
-const AGE_COLORS = ['#fcd34d', '#fbbf24', '#f59e0b', '#d97706', '#b45309', '#94a3b8']
+// 品牌色系：海军蓝主导 + 金色点睛 + 柔和辅色（方向 C · 政企沉稳）
+const PIE_COLORS = ['#1f416b', '#c9a227', '#6b8bb3', '#9cb2cf', '#e0c677', '#94a3b8']
+// 年龄结构：单色系海军蓝渐变（浅→深 = 年轻→年长），比彩虹色更整洁
+const AGE_COLORS = ['#9cb2cf', '#6b8bb3', '#456b97', '#2d5282', '#163456', '#cbd5e1']
 
 export function DashboardCharts({ socialData, ageData }: Props) {
   return (
@@ -82,7 +82,7 @@ export function DashboardCharts({ socialData, ageData }: Props) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(v) => `${v} 人`} />
+              <Tooltip cursor={{ fill: 'rgba(31,65,107,0.05)' }} formatter={(v) => `${v} 人`} />
               <Bar dataKey="value" name="人数" radius={[4, 4, 0, 0]}>
                 {ageData.map((d, idx) => (
                   <Cell key={idx} fill={d.name === '未知' ? AGE_COLORS[5] : AGE_COLORS[idx % 5]} />

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { AppSidebar } from '@/components/app-sidebar'
 import { Toaster } from '@/components/toast'
 import { StartupReminder } from '@/components/startup-reminder'
+import { CommandPalette } from '@/components/command-palette'
 import { cookies } from 'next/headers'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -41,12 +42,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
           （personnel / alerts / exams 等）重新跑各自的 useEffect 数据加载。
           否则 router.refresh() 只刷新服务端组件，客户端组件维持旧数据。
         */}
-        <div className="max-w-7xl mx-auto px-8 py-8" key={account || '__none__'}>
+        <div className="max-w-[1480px] mx-auto px-8 py-8" key={account || '__none__'}>
           {children}
         </div>
       </main>
       <Toaster />
       <StartupReminder />
+      <CommandPalette isSuperAdmin={session.role === 'super_admin'} />
     </div>
   )
 }
