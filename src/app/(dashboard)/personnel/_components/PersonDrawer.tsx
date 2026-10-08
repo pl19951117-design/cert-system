@@ -26,21 +26,23 @@ type HistoryItem = {
 const BADGE: Record<CertStatusKey, string> = {
   expired: 'badge-red', urgent: 'badge-orange', warning: 'badge-amber', ok: 'badge-green', none: 'badge-slate',
 }
-const ACCENT: Record<CertStatusKey, string> = {
-  expired: '#ef4444', urgent: '#f97316', warning: '#f59e0b', ok: '#10b981', none: '#cbd5e1',
+// 剩余天数文字颜色（与人员列表「有效期」列一致）
+const REMAIN_CLASS: Record<CertStatusKey, string> = {
+  expired: 'text-red-500 font-semibold', urgent: 'text-orange-500 font-semibold',
+  warning: 'text-amber-600', ok: 'text-slate-500', none: 'text-slate-400',
 }
 const HISTORY_BADGE: Record<string, string> = {
   创建: 'badge-green', 续期: 'badge-navy', 删除: 'badge-red',
 }
 
-function daysText(expiry: string | null): string {
-  if (!expiry) return '未填写有效期'
+function remainText(expiry: string | null): string {
+  if (!expiry) return '—'
   let d: number
-  try { d = differenceInDays(parseISO(expiry), new Date()) } catch { return '' }
-  if (Number.isNaN(d)) return ''
-  if (d < 0) return `已超期 ${-d} 天`
+  try { d = differenceInDays(parseISO(expiry), new Date()) } catch { return '—' }
+  if (Number.isNaN(d)) return '—'
+  if (d < 0) return `超期 ${-d} 天`
   if (d === 0) return '今天到期'
-  return `还剩 ${d} 天`
+  return `${d} 天`
 }
 
 type Props = {
@@ -159,29 +161,33 @@ export function PersonDrawer({ person: p, maps, onClose, onEdit }: Props) {
             {certs.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 py-6 text-center text-xs text-slate-400">暂无证件</div>
             ) : (
-              <div className="space-y-2.5">
-                {certs.map(c => {
-                  const st: CertStatusKey = maps.certStatusMap.get(c.id) ?? 'none'
-                  return (
-                    <div key={c.id} className="relative rounded-xl border border-[var(--line)] bg-white pl-4 pr-3.5 py-3 shadow-[var(--shadow-xs)] overflow-hidden">
-                      <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: ACCENT[st] }} aria-hidden="true" />
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[13.5px] font-semibold text-slate-800">{c.certType || '未分类'}</span>
-                        <span className={`badge ${BADGE[st]}`}>{statusLabel[st]}</span>
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-between gap-3 text-[12px]">
-                        <span className="text-slate-500 font-mono truncate" title={c.certNo || ''}>{c.certNo || '无编号'}</span>
-                        <span className="text-slate-500 tabular-nums whitespace-nowrap">
-                          {c.expiryDate || '—'}
-                          <span className={`ml-2 ${st === 'expired' ? 'text-red-500' : st === 'urgent' ? 'text-orange-500' : st === 'warning' ? 'text-amber-600' : 'text-slate-400'}`}>
-                            {daysText(c.expiryDate)}
-                          </span>
-                        </span>
-                      </div>
-                      {c.issuer && <div className="mt-1 text-[11.5px] text-slate-400 truncate">发证机关：{c.issuer}</div>}
-                    </div>
-                  )
-                })}
+              // 一行一本：只列实际在用的字段（类别 / 编号 / 有效期至 / 状态 / 剩余）
+              <div className="rounded-xl border border-[var(--line)] bg-white overflow-hidden shadow-[var(--shadow-xs)]">
+                <table className="w-full text-[12.5px]">
+                  <thead>
+                    <tr className="bg-[#fbfbfc] border-b border-[var(--line)] text-[11px] font-semibold text-slate-400">
+                      <th scope="col" className="text-left font-semibold px-3 py-2 whitespace-nowrap">类别</th>
+                      <th scope="col" className="text-left font-semibold px-2 py-2 whitespace-nowrap">证件编号</th>
+                      <th scope="col" className="text-left font-semibold px-2 py-2 whitespace-nowrap">有效期至</th>
+                      <th scope="col" className="text-left font-semibold px-2 py-2 whitespace-nowrap">状态</th>
+                      <th scope="col" className="text-right font-semibold px-3 py-2 whitespace-nowrap">剩余</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {certs.map(c => {
+                      const st: CertStatusKey = maps.certStatusMap.get(c.id) ?? 'none'
+                      return (
+                        <tr key={c.id} className="border-b border-slate-100 last:border-b-0">
+                          <td className="px-3 py-2.5 font-semibold text-slate-800 whitespace-nowrap">{c.certType || '未分类'}</td>
+                          <td className="px-2 py-2.5 text-slate-600 max-w-[150px] truncate" title={c.certNo || ''}>{c.certNo || '—'}</td>
+                          <td className="px-2 py-2.5 text-slate-600 tabular-nums whitespace-nowrap">{c.expiryDate || '—'}</td>
+                          <td className="px-2 py-2.5"><span className={`badge ${BADGE[st]}`}>{statusLabel[st]}</span></td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums whitespace-nowrap ${REMAIN_CLASS[st]}`}>{remainText(c.expiryDate)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </section>
