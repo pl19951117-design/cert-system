@@ -9,7 +9,7 @@ const cert = (id: number, certType: string, expiryDate: string | null): Cert => 
 const person = (id: number, over: Partial<Person> = {}): Person => ({
   id, name: `P${id}`, orgName: '一公司', manager: '王工',
   idCard: '320000198001011234', birthYear: null,
-  education: '本科', socialSecurity: '已参保', sortOrder: null,
+  education: '本科', engineer: null, socialSecurity: '已参保', sortOrder: null,
   certificates: [], ...over,
 })
 
@@ -27,6 +27,16 @@ describe('buildPersonnelExportRows', () => {
     expect(rows[1]['证件类别']).toBe('B')
     expect(rows[0]['证书状态']).toBe('正常')
     expect(rows[1]['证书状态']).toBe('已过期')
+  })
+
+  it('导出包含「工程师」列，紧跟「学历」；未填写为空串', () => {
+    const a = person(1, { engineer: '高级工程师' })
+    const b = person(2)
+    const rows = buildPersonnelExportRows([{ person: a, cert: null }, { person: b, cert: null }], buildPrecomputedMaps([a, b]))
+    const keys = Object.keys(rows[0])
+    expect(keys.indexOf('工程师')).toBe(keys.indexOf('学历') + 1)
+    expect(rows[0]['工程师']).toBe('高级工程师')
+    expect(rows[1]['工程师']).toBe('')
   })
 
   it('序号从 1 开始连续递增', () => {

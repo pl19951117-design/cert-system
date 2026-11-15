@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useMemo, useState } from 'react'
 import { CHANGE_TYPES, computeChangeStats, type ChangeLogRow } from '@/lib/change-log-stats'
 
@@ -256,7 +257,7 @@ export default function LogsPage() {
             {monthFilter ? '该月份没有新增/减少证件记录' : '暂无新增/减少证件记录'}
           </div>
         ) : (
-          <table className="w-full table-premium">
+          <AlignedTable columns={['证件类别','新增','减少','净变化']} className="w-full table-premium">
             <thead>
               <tr>
                 <th>证件类别</th>
@@ -280,7 +281,7 @@ export default function LogsPage() {
                 )
               })}
             </tbody>
-          </table>
+          </AlignedTable>
         )}
       </div>
 
@@ -361,7 +362,7 @@ export default function LogsPage() {
         </div>
       ) : (
         <div className="card-elevated overflow-hidden">
-          <table className="w-full table-premium">
+          <AlignedTable columns={['选择','变动类型','变动日期','建制','负责人','姓名','证件类别','证件编号','到期日期','操作']} className="w-full table-premium">
             <thead>
               <tr>
                 <th className="w-8 px-3">
@@ -421,7 +422,7 @@ export default function LogsPage() {
                 </tr>
               )})}
             </tbody>
-          </table>
+          </AlignedTable>
         </div>
       )}
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState } from 'react'
 import { getJSON } from '@/lib/api'
 
@@ -82,7 +83,7 @@ export default function AuditPage() {
         <div className="card-elevated p-12 text-center text-sm text-slate-400">暂无审计记录</div>
       ) : (
         <div className="card-elevated overflow-hidden">
-          <table className="w-full table-premium">
+          <AlignedTable columns={['时间','操作人','动作','对象','变更详情']} className="w-full table-premium">
             <thead><tr>{['时间', '操作人', '动作', '对象', '变更详情'].map(h => <th key={h}>{h}</th>)}</tr></thead>
             <tbody>
               {filtered.map(l => (
@@ -95,7 +96,7 @@ export default function AuditPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </AlignedTable>
         </div>
       )}
     </div>

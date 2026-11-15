@@ -3,6 +3,7 @@
 // 人员详情抽屉 —— 在列表里点姓名即可从右侧滑出查看，不离开当前页面（筛选、滚动位置都保留）。
 // 完整的证件增删改仍在 /personnel/[id] 页面完成，这里只做「快速查看 + 常用入口」。
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { differenceInDays, parseISO } from 'date-fns'
@@ -87,6 +88,7 @@ export function PersonDrawer({ person: p, maps, onClose, onEdit }: Props) {
     ['身份证号', p.idCard || '—'],
     ['年龄', age !== null ? `${age} 岁` : '—'],
     ['学历', p.education || '—'],
+    ['工程师', p.engineer || '—'],
     ['社保情况', p.socialSecurity || '—'],
   ]
 
@@ -99,36 +101,32 @@ export function PersonDrawer({ person: p, maps, onClose, onEdit }: Props) {
         aria-label={`${p.name} 的详情`}
         onClick={e => e.stopPropagation()}
       >
-        {/* 头部：海军蓝品牌条 */}
-        <div className="relative px-6 pt-6 pb-5 text-white" style={{ background: 'linear-gradient(150deg, #1a3a63 0%, #0f2a4a 60%, #0a1d34 100%)' }}>
+        <div className="relative px-6 pt-6 pb-5 bg-white border-b border-[var(--line)] text-slate-900">
           <button
             onClick={onClose}
             aria-label="关闭"
-            className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gold-300 to-gold-600 ring-1 ring-white/25 flex items-center justify-center text-[22px] font-bold shadow-lg shadow-black/25">
-              {p.name[0]}
-            </div>
             <div className="min-w-0">
               <div className="text-[19px] font-bold tracking-tight truncate">{p.name}</div>
-              <div className="text-[12.5px] text-navy-200/85 mt-1 truncate">
+              <div className="text-xs text-slate-500 mt-1 truncate">
                 {p.orgName || '未填写建制'}<span className="mx-1.5 opacity-50">·</span>负责人 {p.manager || '—'}
               </div>
             </div>
           </div>
           <div className="mt-5 flex items-center gap-2">
-            <button onClick={() => onEdit(p)} className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/[0.16] text-[12.5px] font-medium transition-colors">
+            <button onClick={() => onEdit(p)} className="btn-secondary !px-3 !py-1.5 !text-xs">
               编辑信息
             </button>
-            <Link href={`/personnel/${p.id}`} className="px-3 py-1.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-navy-950 text-[12.5px] font-semibold transition-colors">
+            <Link href={`/personnel/${p.id}`} className="btn-primary !px-3 !py-1.5 !text-xs">
               证件管理 →
             </Link>
-            <Link href={`/personnel/${p.id}/print`} className="px-3 py-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 text-[12.5px] font-medium transition-colors">
+            <Link href={`/personnel/${p.id}/print`} className="btn-secondary !px-3 !py-1.5 !text-xs">
               打印
             </Link>
           </div>
@@ -142,9 +140,9 @@ export function PersonDrawer({ person: p, maps, onClose, onEdit }: Props) {
               <span className="section-label-text">基本信息</span>
             </div>
             <dl className="grid grid-cols-2 gap-px rounded-xl overflow-hidden border border-[var(--line)] bg-[var(--line)]">
-              {info.map(([k, v]) => (
-                <div key={k} className="bg-white px-3.5 py-2.5">
-                  <dt className="text-[11px] text-slate-400">{k}</dt>
+              {info.map(([k, v], index) => (
+                <div key={k} className={`bg-white px-3.5 py-2.5 ${index === info.length - 1 && info.length % 2 ? 'col-span-2' : ''}`}>
+                  <dt className="text-xs text-slate-500">{k}</dt>
                   <dd className={`mt-0.5 text-[13px] text-slate-800 truncate ${k === '身份证号' ? 'font-mono text-[12px]' : ''}`} title={v}>{v}</dd>
                 </div>
               ))}
@@ -162,8 +160,8 @@ export function PersonDrawer({ person: p, maps, onClose, onEdit }: Props) {
               <div className="rounded-xl border border-dashed border-slate-200 py-6 text-center text-xs text-slate-400">暂无证件</div>
             ) : (
               // 一行一本：只列实际在用的字段（类别 / 编号 / 有效期至 / 状态 / 剩余）
-              <div className="rounded-xl border border-[var(--line)] bg-white overflow-hidden shadow-[var(--shadow-xs)]">
-                <table className="w-full text-[12.5px]">
+              <div className="rounded-xl border border-[var(--line)] bg-white overflow-x-auto shadow-[var(--shadow-xs)]">
+                <AlignedTable columns={['类别','证件编号','有效期至','状态','剩余']} className="w-full text-[12.5px]">
                   <thead>
                     <tr className="bg-[#fbfbfc] border-b border-[var(--line)] text-[11px] font-semibold text-slate-400">
                       <th scope="col" className="text-left font-semibold px-3 py-2 whitespace-nowrap">类别</th>
@@ -187,7 +185,7 @@ export function PersonDrawer({ person: p, maps, onClose, onEdit }: Props) {
                       )
                     })}
                   </tbody>
-                </table>
+                </AlignedTable>
               </div>
             )}
           </section>

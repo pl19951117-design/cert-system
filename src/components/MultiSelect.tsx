@@ -12,6 +12,7 @@
 // 边界：disabled / 空选项 / 长文本截断 / 鼠标点外部关闭
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { Check, ChevronDown } from 'lucide-react'
 
 export type MultiSelectProps = {
   options: string[]
@@ -21,18 +22,29 @@ export type MultiSelectProps = {
   disabled?: boolean
   /** 当无可见 <label> 时设置 aria-label */
   ariaLabel?: string
+  /** 与可见 label 的 htmlFor 对应 */
+  id?: string
+  ariaLabelledBy?: string
 }
 
 export function MultiSelect({
   options, selected, onChange,
-  placeholder = '全部', disabled = false, ariaLabel,
+  placeholder = '全部', disabled = false, ariaLabel, id, ariaLabelledBy,
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
   const wrapRef    = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const listRef    = useRef<HTMLUListElement>(null)
+  const clearRef   = useRef<HTMLButtonElement>(null)
+  const searchRef  = useRef({ value: '', time: 0 })
   const listId = useId()
+
+  useEffect(() => {
+    if (!disabled) return
+    const raf = requestAnimationFrame(() => setOpen(false))
+    return () => cancelAnimationFrame(raf)
+  }, [disabled])
 
   // 关闭：点外部
   useEffect(() => {
@@ -49,11 +61,13 @@ export function MultiSelect({
   // 打开时：初始化 active；聚焦列表；滚动到 active
   useEffect(() => {
     if (!open) return
-    setActiveIdx(prev => {
-      if (options.length === 0) return -1
-      return prev < 0 || prev >= options.length ? 0 : prev
+    const raf = requestAnimationFrame(() => {
+      setActiveIdx(prev => {
+        if (options.length === 0) return -1
+        return prev < 0 || prev >= options.length ? 0 : prev
+      })
+      listRef.current?.focus()
     })
-    const raf = requestAnimationFrame(() => listRef.current?.focus())
     return () => cancelAnimationFrame(raf)
   }, [open, options.length])
 
@@ -70,6 +84,7 @@ export function MultiSelect({
   }
 
   function toggleAt(idx: number) {
+    if (disabled) return
     const opt = options[idx]
     if (opt === undefined) return
     onChange(selected.includes(opt) ? selected.filter(o => o !== opt) : [...selected, opt])
@@ -77,8 +92,10 @@ export function MultiSelect({
 
   function onTriggerKey(e: React.KeyboardEvent<HTMLButtonElement>) {
     if (disabled) return
-    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
+      const selectedIdx = options.findIndex(opt => selected.includes(opt))
+      setActiveIdx(options.length === 0 ? -1 : e.key === 'ArrowUp' ? options.length - 1 : Math.max(selectedIdx, 0))
       setOpen(true)
     }
   }
@@ -86,13 +103,13 @@ export function MultiSelect({
   function onListKey(e: React.KeyboardEvent<HTMLUListElement>) {
     switch (e.key) {
       case 'Escape':
-        e.preventDefault(); close(); return
+        e.preventDefault(); e.stopPropagation(); close(); return
       case 'ArrowDown':
         e.preventDefault(); setActiveIdx(i => Math.min(i + 1, options.length - 1)); return
       case 'ArrowUp':
-        e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); return
+        e.preventDefault(); setActiveIdx(i => options.length ? Math.max(i - 1, 0) : -1); return
       case 'Home':
-        e.preventDefault(); setActiveIdx(0); return
+        e.preventDefault(); setActiveIdx(options.length ? 0 : -1); return
       case 'End':
         e.preventDefault(); setActiveIdx(options.length - 1); return
       case 'Enter':
@@ -101,9 +118,22 @@ export function MultiSelect({
         if (activeIdx >= 0) toggleAt(activeIdx)
         return
       case 'Tab':
-        // 不拦截 — Tab 自然走向下一个表单控件
+        if (e.shiftKey && clearRef.current) {
+          e.preventDefault()
+          clearRef.current.focus()
+          return
+        }
+        // 先回到触发器，再让浏览器自然走向相邻表单控件，避免卸载列表后丢失 Tab 顺序。
+        triggerRef.current?.focus()
         setOpen(false)
         return
+    }
+    if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const now = Date.now()
+      const value = (now - searchRef.current.time < 650 ? searchRef.current.value : '') + e.key.toLocaleLowerCase()
+      searchRef.current = { value, time: now }
+      const idx = options.findIndex(opt => opt.toLocaleLowerCase().startsWith(value))
+      if (idx >= 0) { e.preventDefault(); setActiveIdx(idx) }
     }
   }
 
@@ -113,39 +143,55 @@ export function MultiSelect({
     `已选 ${selected.length} 项`
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div
+      ref={wrapRef}
+      className="relative"
+      onBlur={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false)
+      }}
+    >
       <button
+        id={id}
         ref={triggerRef}
         type="button"
         role="combobox"
         aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={open ? listId : undefined}
+        aria-expanded={open && !disabled}
+        aria-controls={open && !disabled ? listId : undefined}
         aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
+        aria-describedby={selected.length ? `${listId}-selection` : undefined}
+        title={selected.length ? selected.join('、') : undefined}
         disabled={disabled}
         onClick={() => !disabled && setOpen(o => !o)}
         onKeyDown={onTriggerKey}
-        className="input-refined !py-1.5 !px-2.5 !text-xs flex items-center justify-between gap-2 text-left w-full disabled:opacity-50 disabled:cursor-not-allowed"
+        className="input-refined flex min-h-9 w-full items-center justify-between gap-2 !px-3 !py-2 !text-[13px] text-left disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
       >
-        <span className={`truncate ${selected.length === 0 ? 'text-slate-400' : 'text-slate-700'}`}>
+        <span className="min-w-0 truncate text-slate-700">
           {triggerLabel}
         </span>
-        <svg
-          viewBox="0 0 12 12"
+        <ChevronDown
+          size={16}
+          strokeWidth={1.7}
           aria-hidden="true"
-          className={`w-2.5 h-2.5 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-        >
-          <path fill="currentColor" d="M2.2 4.2l3.8 3.8 3.8-3.8z" />
-        </svg>
+          className={`shrink-0 text-slate-500 transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+        />
       </button>
+      {selected.length > 0 && <span id={`${listId}-selection`} className="sr-only">已选：{selected.join('、')}</span>}
 
-      {open && (
-        <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg py-1">
+      {open && !disabled && (
+        <div className="absolute z-30 mt-1.5 w-full min-w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-[0_4px_16px_rgba(15,23,42,0.08)]">
           {selected.length > 0 && (
             <button
+              ref={clearRef}
               type="button"
-              onClick={() => onChange([])}
-              className="w-full text-left px-3 py-1.5 text-[11px] text-navy-600 hover:bg-slate-50 font-medium border-b border-slate-100"
+              onClick={() => { onChange([]); listRef.current?.focus() }}
+              onKeyDown={e => {
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close() }
+                if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) { e.preventDefault(); listRef.current?.focus() }
+                if (e.key === 'Tab' && e.shiftKey) { e.preventDefault(); close() }
+              }}
+              className="mb-1 min-h-9 w-full border-b border-slate-100 px-3 py-2 text-left text-xs font-medium text-navy-700 transition-colors hover:bg-slate-50 active:bg-slate-100"
             >
               清除选择
             </button>
@@ -154,14 +200,16 @@ export function MultiSelect({
             ref={listRef}
             id={listId}
             role="listbox"
+            aria-label={ariaLabelledBy ? undefined : (ariaLabel ?? '可选筛选项')}
+            aria-labelledby={ariaLabelledBy}
             aria-multiselectable="true"
-            aria-activedescendant={activeIdx >= 0 ? `${listId}-opt-${activeIdx}` : undefined}
+            aria-activedescendant={activeIdx >= 0 && activeIdx < options.length ? `${listId}-opt-${activeIdx}` : undefined}
             tabIndex={-1}
             onKeyDown={onListKey}
-            className="max-h-60 overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-navy-300 rounded"
+            className="max-h-60 overflow-y-auto rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-navy-600"
           >
             {options.length === 0 ? (
-              <li className="px-3 py-2 text-xs text-slate-400" role="presentation">无选项</li>
+              <li className="px-3 py-3 text-xs text-slate-500" role="presentation">暂无可选项</li>
             ) : options.map((opt, idx) => {
               const checked = selected.includes(opt)
               const active = idx === activeIdx
@@ -173,22 +221,21 @@ export function MultiSelect({
                   aria-selected={checked}
                   data-idx={idx}
                   onMouseEnter={() => setActiveIdx(idx)}
-                  onClick={() => toggleAt(idx)}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-xs text-slate-600 cursor-pointer ${active ? 'bg-slate-50' : ''}`}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { toggleAt(idx); listRef.current?.focus() }}
+                  className={`flex min-h-9 cursor-pointer items-center gap-2.5 px-3 py-2 text-[13px] transition-colors duration-150 ${checked ? 'text-navy-800' : 'text-slate-700'} ${active ? 'bg-slate-100' : checked ? 'bg-navy-50/60' : ''}`}
                 >
                   <span
                     aria-hidden="true"
-                    className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                       checked ? 'bg-navy-700 border-navy-700' : 'border-slate-300 bg-white'
                     }`}
                   >
                     {checked && (
-                      <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-white">
-                        <path fill="currentColor" d="M10.28 2.28L4.5 8.06 1.72 5.28.28 6.72l4.22 4.22 7.22-7.22z" />
-                      </svg>
+                      <Check size={12} strokeWidth={2} className="text-white" />
                     )}
                   </span>
-                  <span className="truncate" title={opt}>{opt}</span>
+                  <span className="min-w-0 break-words">{opt}</span>
                 </li>
               )
             })}

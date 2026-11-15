@@ -22,12 +22,14 @@ export function buildDropdownOptions(people: Person[]): DropdownOptions {
   const o = new Set<string>()
   const m = new Set<string>()
   const e = new Set<string>()
+  const g = new Set<string>()
   const s = new Set<string>()
   const t = new Set<string>()
   for (const p of people) {
     if (p.orgName)        o.add(p.orgName)
     if (p.manager)        m.add(p.manager)
     if (p.education)      e.add(p.education)
+    if (p.engineer)       g.add(p.engineer)
     if (p.socialSecurity) s.add(p.socialSecurity)
     for (const c of p.certificates) if (c.certType) t.add(c.certType)
   }
@@ -35,6 +37,7 @@ export function buildDropdownOptions(people: Person[]): DropdownOptions {
     orgs: Array.from(o),
     managers: Array.from(m),
     educations: Array.from(e),
+    engineers: Array.from(g),
     socials: Array.from(s),
     certTypes: Array.from(t).sort(compareCertType),
   }

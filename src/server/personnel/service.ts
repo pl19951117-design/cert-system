@@ -17,7 +17,7 @@ import type {
   PersonUpdateInput,
 } from './schemas'
 
-const PERSON_AUDIT_FIELDS = ['name', 'orgName', 'manager', 'idCard', 'birthYear', 'education', 'socialSecurity', 'sortOrder']
+const PERSON_AUDIT_FIELDS = ['name', 'orgName', 'manager', 'idCard', 'birthYear', 'education', 'engineer', 'socialSecurity', 'sortOrder']
 const CERT_AUDIT_FIELDS   = ['certType', 'certNo', 'issueDate', 'expiryDate', 'issuer']
 
 const changedBy = (s: SessionUser) => s.displayName || s.username
@@ -82,6 +82,7 @@ export const personnelService = {
           idCard: input.idCard ?? null,
           birthYear: input.birthYear ?? null,
           education: input.education ?? null,
+          engineer: input.engineer ?? null,
           socialSecurity: input.socialSecurity ?? null,
           sortOrder: newSortOrder,
         },
@@ -115,6 +116,7 @@ export const personnelService = {
         idCard:         input.idCard ?? null,
         birthYear:      input.birthYear ?? null,
         education:      input.education ?? null,
+        engineer:       input.engineer ?? null,
         socialSecurity: input.socialSecurity ?? null,
         sortOrder:      input.sortOrder ?? null,
       },

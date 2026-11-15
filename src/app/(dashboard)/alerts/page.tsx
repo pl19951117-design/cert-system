@@ -1,7 +1,9 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { differenceInDays, parseISO } from 'date-fns'
 import * as XLSX from 'xlsx'
 
@@ -29,9 +31,13 @@ const badge: Record<string, string> = {
 const label: Record<string, string> = { expired: '已过期', urgent: '紧急', warning: '预警', ok: '正常' }
 
 export default function AlertsPage() {
+  const searchParams = useSearchParams()
   const [certs, setCerts] = useState<Cert[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<string>('alert')
+  const [statusFilter, setStatusFilter] = useState<string>(() => {
+    const status = searchParams.get('status')
+    return status && ['expired', 'urgent', 'warning'].includes(status) ? status : 'alert'
+  })
   const [orgFilter, setOrgFilter] = useState('')
 
   useEffect(() => {
@@ -152,7 +158,7 @@ export default function AlertsPage() {
         </div>
       ) : (
         <div className="card-elevated overflow-hidden">
-          <table className="w-full table-premium">
+          <AlignedTable columns={['归属建制','负责人','姓名','证件类别','证件编号','到期日期','状态','剩余天数']} className="w-full table-premium">
             <thead>
               <tr>
                 {['归属建制','负责人','姓名','证件类别','证件编号','到期日期','状态','剩余天数'].map(h => (
@@ -185,7 +191,7 @@ export default function AlertsPage() {
                 )
               })}
             </tbody>
-          </table>
+          </AlignedTable>
         </div>
       )}
     </div>

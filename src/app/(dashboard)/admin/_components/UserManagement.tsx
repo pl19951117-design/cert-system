@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState } from 'react'
 import { apiFetch, getJSON } from '@/lib/api'
 import { toast } from '@/components/toast'
@@ -113,7 +114,7 @@ export function UserManagement({ currentUserId }: { currentUserId: number }) {
         <div className="text-sm text-slate-400 py-10 text-center">加载中…</div>
       ) : (
         <div className="card-elevated overflow-hidden">
-          <table className="w-full table-premium">
+          <AlignedTable columns={['用户名','显示名称','角色','状态','创建时间','操作']} className="w-full table-premium">
             <thead>
               <tr>{['用户名', '显示名称', '角色', '状态', '创建时间', '操作'].map(h => <th key={h}>{h}</th>)}</tr>
             </thead>
@@ -172,7 +173,7 @@ export function UserManagement({ currentUserId }: { currentUserId: number }) {
                 )
               })}
             </tbody>
-          </table>
+          </AlignedTable>
         </div>
       )}
 

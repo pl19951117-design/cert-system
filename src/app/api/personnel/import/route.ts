@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       manager: col(row, '负责人', '管理人', '主管') || null,
       birthYear: parseInt(col(row, '出生年份', '出生年')) || null,
       education: col(row, '学历', '文化程度') || null,
+      engineer: col(row, '工程师', '职称') || null,
       socialSecurity: col(row, '社保情况', '社保号', '社保') || null,
     }
 
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
           if (personData.manager) data.manager = personData.manager
           if (personData.birthYear) data.birthYear = personData.birthYear
           if (personData.education) data.education = personData.education
+          if (personData.engineer) data.engineer = personData.engineer
           if (personData.socialSecurity) data.socialSecurity = personData.socialSecurity
           await prisma.person.update({ where: { id: personId }, data })
           updated++

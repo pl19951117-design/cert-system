@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { Modal } from '@/components/Modal'
@@ -63,7 +64,7 @@ function FlowBlock({ title, tone, flow, hasOther }: {
         <div className="text-xs text-slate-400">该期间无记录</div>
       ) : (
         <div className="border border-slate-100 rounded-lg overflow-hidden">
-          <table className="w-full text-xs">
+          <AlignedTable columns={['建制','A','B','C', ...(hasOther ? ['其他'] : []), '小计']} className="w-full text-xs">
             <thead>
               <tr className="bg-slate-50/80 text-slate-400">
                 <th className="text-left font-semibold px-2.5 py-1.5">建制</th>
@@ -86,7 +87,7 @@ function FlowBlock({ title, tone, flow, hasOther }: {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </AlignedTable>
         </div>
       )}
     </div>
@@ -187,7 +188,7 @@ export function DataReportModal({ onClose }: { onClose: () => void }) {
                 </button>
               </div>
               <div className="card-elevated overflow-hidden">
-                <table className="w-full table-premium">
+                <AlignedTable columns={['类别','证件总数','缴纳社保','社保覆盖率']} className="w-full table-premium">
                   <thead>
                     <tr><th>类别</th><th className="text-right">证件总数</th><th className="text-right">缴纳社保</th><th className="text-right w-[34%]">社保覆盖率</th></tr>
                   </thead>
@@ -198,7 +199,7 @@ export function DataReportModal({ onClose }: { onClose: () => void }) {
                     <CoverageRow label="C 类（C1+C2+C3）" stat={report.current.C} />
                     {showOtherCurrent && <CoverageRow label="其他类别" stat={report.current.other} />}
                   </tbody>
-                </table>
+                </AlignedTable>
               </div>
             </div>
 
@@ -236,7 +237,7 @@ export function DataReportLauncher() {
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        一键生成数据报告
+        生成数据报告
       </button>
       {open && <DataReportModal onClose={() => setOpen(false)} />}
     </>

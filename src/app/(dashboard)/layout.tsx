@@ -6,6 +6,7 @@ import { Toaster } from '@/components/toast'
 import { StartupReminder } from '@/components/startup-reminder'
 import { CommandPalette } from '@/components/command-palette'
 import { cookies } from 'next/headers'
+import { WorkspaceToolbar } from '@/components/workspace-toolbar'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -30,19 +31,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex h-full">
+      <a href="#main-content" className="skip-link no-print">跳转到主要内容</a>
       <AppSidebar
         user={{ displayName: session.displayName, username: session.username, role: session.role }}
         account={account}
         accounts={accountIds}
         pendingTransfers={pendingTransfers}
       />
-      <main className="app-main flex-1 min-h-full overflow-x-hidden">
+      <main id="main-content" tabIndex={-1} className="app-main flex-1 min-h-full">
+        <WorkspaceToolbar account={account} />
         {/*
           key={account}：切换账套时整个内容子树 remount，迫使所有客户端页面
           （personnel / alerts / exams 等）重新跑各自的 useEffect 数据加载。
           否则 router.refresh() 只刷新服务端组件，客户端组件维持旧数据。
         */}
-        <div className="max-w-[1480px] mx-auto px-8 py-8" key={account || '__none__'}>
+        <div className="app-content" key={account || '__none__'}>
           {children}
         </div>
       </main>

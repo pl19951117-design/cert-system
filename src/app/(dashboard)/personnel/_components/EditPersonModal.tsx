@@ -5,14 +5,14 @@ import { Modal } from '@/components/Modal'
 import { Spinner } from '@/components/Spinner'
 import { personnelApi } from '@/lib/personnel/api'
 import type { Person } from '@/lib/personnel/types'
-import { CERT_FIELDS_ADD, PERSON_FIELDS } from './form-config'
+import { CERT_FIELDS_ADD, PERSON_FIELDS, engineerOptions } from './form-config'
 
 export type EditPersonModalProps = {
   person: Person
   onClose: () => void
   onSaved: () => void
   /** 已有的建制/负责人，用于自动补全 —— 选中已有值才能正确归入同一组 */
-  options?: { orgs: string[]; managers: string[] }
+  options?: { orgs: string[]; managers: string[]; engineers?: string[] }
 }
 
 export function EditPersonModal({ person, onClose, onSaved, options }: EditPersonModalProps) {
@@ -22,7 +22,10 @@ export function EditPersonModal({ person, onClose, onSaved, options }: EditPerso
     manager: person.manager || '',
     idCard: person.idCard || '',
     education: person.education || '',
+    engineer: person.engineer || '',
     socialSecurity: person.socialSecurity || '',
+    // 不在表单里显示，但要原样带回，否则保存时会被清空
+    birthYear: person.birthYear?.toString() || '',
     sortOrder: person.sortOrder?.toString() || '',
   }))
   const [certs, setCerts] = useState<Record<string, string>[]>(() =>
@@ -65,9 +68,11 @@ export function EditPersonModal({ person, onClose, onSaved, options }: EditPerso
           {PERSON_FIELDS.map(f => {
             const id = `${baseId}-${f.key}`
             const listId = f.key === 'orgName' ? `${baseId}-orgs`
-                         : f.key === 'manager' ? `${baseId}-mgrs` : undefined
+                         : f.key === 'manager' ? `${baseId}-mgrs`
+                         : f.key === 'engineer' ? `${baseId}-engs` : undefined
             const listItems = f.key === 'orgName' ? options?.orgs
-                            : f.key === 'manager' ? options?.managers : undefined
+                            : f.key === 'manager' ? options?.managers
+                            : f.key === 'engineer' ? engineerOptions(options?.engineers) : undefined
             return (
               <div key={f.key} className={f.col === 2 ? 'sm:col-span-2' : ''}>
                 <label htmlFor={id} className="block text-xs font-semibold text-slate-600 mb-1">

@@ -7,10 +7,11 @@
 //   行为      — body 滚动锁定（多 modal 堆叠安全的引用计数）
 //   渲染      — createPortal 到 body，规避祖先 transform/overflow 造成的样式 bug
 //   响应式    — 沿用既有 .modal-card 的 max-height/overflow-y；卡片宽度通过 size 控制
-// 视觉零变更：复用 globals.css 的 .modal-overlay / .modal-card
+// 视觉由 globals.css 的 .modal-overlay / .modal-card 统一管理
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -20,6 +21,10 @@ let openModalCount = 0
 // 模块级栈：Esc 和 Tab 陷阱只让"最顶 modal"响应，避免多 modal 同时关闭
 const modalStack: Array<{ id: number }> = []
 let nextModalId = 0
+
+const subscribeToClient = () => () => {}
+const clientSnapshot = () => true
+const serverSnapshot = () => false
 
 const SIZE_CLASS = {
   sm: 'max-w-md',
@@ -56,8 +61,7 @@ export function Modal({
   const titleId = useId()
 
   // SSR 守卫：document.body 仅在 client 可用
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const mounted = useSyncExternalStore(subscribeToClient, clientSnapshot, serverSnapshot)
 
   // mount: 锁定滚动 + 捕获焦点 + 聚焦首元素； unmount: 全部还原
   useEffect(() => {
@@ -135,15 +139,16 @@ export function Modal({
         className={`modal-card ${SIZE_CLASS[size]} ${cardClassName} outline-none`}
         style={cardStyle}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-[20px] z-10">
-          <h2 id={titleId} className="text-base font-bold text-slate-900">{title}</h2>
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 rounded-t-xl border-b border-slate-200 bg-white px-6 py-4">
+          <h2 id={titleId} className="text-base font-semibold leading-6 text-slate-900">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label={closeLabel}
-            className="text-slate-400 hover:text-slate-600 text-xl leading-none focus-visible:outline-2 focus-visible:outline-navy-400 rounded"
+            title={closeLabel}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-600"
           >
-            ×
+            <X size={18} strokeWidth={1.7} aria-hidden="true" />
           </button>
         </div>
         {children}

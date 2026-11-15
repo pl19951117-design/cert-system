@@ -7,8 +7,12 @@
 //   - 4 个模态框    → ./_components/*
 // 本文件只负责：data state、filters state、table/filter/stats/pagination 的 JSX 编排
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlignedTable } from '@/components/aligned-table'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { ChevronDown, Download, FileDown, FileUp, Plus, RefreshCw, Users } from 'lucide-react'
+import { ActionMenu } from '@/components/action-menu'
 import { toast } from '@/components/toast'
 import { apiFetch } from '@/lib/api'
 import { MultiSelect } from '@/components/MultiSelect'
@@ -58,27 +62,33 @@ const EXPIRY_TEXT_CLASS: Record<CertStatusKey, string> = {
   none:    'text-slate-400',
 }
 
-// 姓名首字头像的柔和配色（按 id 取模，稳定不闪变）
-const AVATAR_CLASSES = [
-  'bg-gold-100 text-gold-700',
-  'bg-sky-100 text-sky-700',
-  'bg-emerald-100 text-emerald-700',
-  'bg-violet-100 text-violet-700',
-  'bg-rose-100 text-rose-700',
-  'bg-slate-200 text-slate-600',
-]
+// Avatars use the shared neutral/brand palette rather than decorative colors.
 
 const PAGE_SIZE = 50
 // 分组视图：数据量超过这个行数且没有筛选时，默认把各建制收起（先看全局，再按需展开）
 const AUTO_COLLAPSE_ROWS = 200
 
-const COLUMNS = ['序号','归属建制','负责人','姓名','身份证号','年龄','学历','社保情况','证件类别','证件编号','有效期','证书状态','操作']
+const COLUMNS = ['序号','归属建制','负责人','姓名','身份证号','年龄','学历','工程师','社保情况','证件类别','证件编号','有效期','证书状态','操作']
 
 type ViewMode = 'grouped' | 'flat'
 
+function subscribeToViewMode(onChange: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === 'personnel-view' || event.key === null) onChange()
+  }
+  window.addEventListener('storage', onStorage)
+  return () => window.removeEventListener('storage', onStorage)
+}
+
+function getSavedViewMode(): ViewMode {
+  try { return localStorage.getItem('personnel-view') === 'flat' ? 'flat' : 'grouped' } catch { return 'grouped' }
+}
+
+const getServerViewMode = (): ViewMode => 'grouped'
+
 function StatDot({ color, label, n }: { color: string; label: string; n: number }) {
   return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-500">
+    <span className="inline-flex items-center gap-1 text-xs text-slate-500">
       <span className={`w-1 h-1 rounded-full ${color}`} />
       {label}<span className="font-semibold text-slate-700 tabular-nums ml-0.5">{n}</span>
     </span>
@@ -86,12 +96,30 @@ function StatDot({ color, label, n }: { color: string; label: string; n: number 
 }
 
 export default function PersonnelPage() {
+  const searchParams = useSearchParams()
+  // URL 指令只在本次挂载初始化时消费；清理 URL 不会清空已经填写的表单/筛选。
+  const [initialCommand] = useState(() => {
+    const add = searchParams.get('add') === '1'
+    const prefill: Record<string, string> = {}
+    if (add) {
+      for (const key of ['name', 'orgName', 'manager', 'idCard'] as const) {
+        const value = searchParams.get(key)
+        if (value) prefill[key] = value
+      }
+    }
+    const search = searchParams.get('search') || ''
+    const candidate = Number(searchParams.get('open'))
+    const personId = Number.isInteger(candidate) && candidate > 0 ? candidate : null
+    return { add, prefill: add ? prefill : null, search, personId, consumed: add || !!search || personId !== null }
+  })
+
   // === 数据 ===
   const [people, setPeople]   = useState<Person[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   // === 模态/确认态（modal 的 form state 全部下沉到 modal 内部，这里只管开关）===
-  const [showAdd, setShowAdd]               = useState(false)
+  const [showAdd, setShowAdd]               = useState(initialCommand.add)
   const [editPerson, setEditPerson]         = useState<Person | null>(null)
   const [showBulk, setShowBulk]             = useState(false)
   const [importPreview, setImportPreview]   = useState<ImportPreviewData | null>(null)
@@ -104,63 +132,52 @@ export default function PersonnelPage() {
   // === 筛选 ===
   const [fOrg,        setFOrg]        = useState('')
   const [fManager,    setFManager]    = useState('')
-  const [fName,       setFName]       = useState('')
+  const [fName,       setFName]       = useState(initialCommand.search)
   const [fEducation,  setFEducation]  = useState('')
+  const [fEngineer,   setFEngineer]   = useState('')
   const [fAge,        setFAge]        = useState('')
   const [fSocial,     setFSocial]     = useState('')
   const [fCertType,   setFCertType]   = useState<string[]>([])
   const [fCertStatus, setFCertStatus] = useState('')
 
-  const [showStats, setShowStats] = useState(true)
+  const [showStats, setShowStats] = useState(false)
   const [page, setPage]           = useState(1)
   const [showMoreFilters, setShowMoreFilters] = useState(false)
   const [regrouping, setRegrouping] = useState(false)
   // 「转入转出登记」跳转过来时的添加预填
-  const [addPrefill, setAddPrefill] = useState<Record<string, string> | null>(null)
+  const [addPrefill, setAddPrefill] = useState<Record<string, string> | null>(initialCommand.prefill)
   // 右侧详情抽屉
-  const [drawerId, setDrawerId] = useState<number | null>(null)
+  const [drawerId, setDrawerId] = useState<number | null>(initialCommand.personId)
 
   // 视图：按建制分组 / 平铺列表（记住用户的选择）
-  const [viewMode, setViewMode] = useState<ViewMode>('grouped')
-  useEffect(() => {
-    try { if (localStorage.getItem('personnel-view') === 'flat') setViewMode('flat') } catch { /* 忽略 */ }
-  }, [])
+  const savedViewMode = useSyncExternalStore(subscribeToViewMode, getSavedViewMode, getServerViewMode)
+  const [viewChoice, setViewChoice] = useState<ViewMode | null>(null)
+  const viewMode = viewChoice ?? savedViewMode
   function switchView(m: ViewMode) {
-    setViewMode(m)
+    setViewChoice(m)
     try { localStorage.setItem('personnel-view', m) } catch { /* 忽略 */ }
   }
   // 分组展开状态：'auto' 由数据量决定；用户点「全部展开/收起」或单组切换后记录覆盖值
   const [groupMode, setGroupMode] = useState<'auto' | 'open' | 'closed'>('auto')
   const [groupOverrides, setGroupOverrides] = useState<Map<string, boolean>>(new Map())
 
-  // 任何筛选变化都重置到第一页，分组展开状态回到自动
-  useEffect(() => {
+  // 筛选事件与分页/分组重置一起提交，避免先渲染旧页再用 effect 纠正。
+  function resetFilterView() {
     setPage(1)
     setGroupMode('auto')
     setGroupOverrides(new Map())
-  }, [fOrg, fManager, fName, fEducation, fAge, fSocial, fCertType, fCertStatus])
+  }
+
+  function changeFilter<T>(setValue: React.Dispatch<React.SetStateAction<T>>, value: T) {
+    setValue(value)
+    resetFilterView()
+  }
 
   // 接收登记页跳转指令：?add=1&name=..（打开添加弹窗并预填）或 ?search=..（按姓名筛选）
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search)
-    let consumed = false
-    if (q.get('add') === '1') {
-      const pre: Record<string, string> = {}
-      for (const k of ['name', 'orgName', 'manager', 'idCard'] as const) {
-        const v = q.get(k)
-        if (v) pre[k] = v
-      }
-      setAddPrefill(pre)
-      setShowAdd(true)
-      consumed = true
-    }
-    const search = q.get('search')
-    if (search) { setFName(search); consumed = true }
-    const openId = Number(q.get('open'))
-    if (Number.isInteger(openId) && openId > 0) { setDrawerId(openId); consumed = true }
     // 清掉 query，避免刷新/返回时重复触发
-    if (consumed) window.history.replaceState(null, '', '/personnel')
-  }, [])
+    if (initialCommand.consumed) window.history.replaceState(null, '', '/personnel')
+  }, [initialCommand])
 
   // 全局搜索（Ctrl+K）在本页选中人员 / 「添加人员」时，直接响应，无需跳转
   useEffect(() => {
@@ -180,24 +197,32 @@ export default function PersonnelPage() {
   // === 数据加载 ===
   async function load() {
     setLoading(true)
+    setLoadError(false)
     try {
       const data = await personnelApi.list()
       setPeople(Array.isArray(data) ? data : [])
     } catch {
-      setPeople([])
+      setLoadError(true)
     }
     setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    let active = true
+    personnelApi.list()
+      .then(data => { if (active) setPeople(Array.isArray(data) ? data : []) })
+      .catch(() => { if (active) setLoadError(true) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
 
   // === 派生数据（precompute → filter → page）===
   const maps = useMemo(() => buildPrecomputedMaps(people), [people])
   const dropdowns = useMemo(() => buildDropdownOptions(people), [people])
 
   const filters: FilterState = useMemo(() => ({
-    org: fOrg, manager: fManager, name: fName, education: fEducation,
+    org: fOrg, manager: fManager, name: fName, education: fEducation, engineer: fEngineer,
     age: fAge, social: fSocial, certTypes: fCertType, certStatus: fCertStatus,
-  }), [fOrg, fManager, fName, fEducation, fAge, fSocial, fCertType, fCertStatus])
+  }), [fOrg, fManager, fName, fEducation, fEngineer, fAge, fSocial, fCertType, fCertStatus])
 
   const view: PersonnelView = useMemo(
     () => derivePersonnelView(people, filters, maps),
@@ -310,8 +335,9 @@ export default function PersonnelPage() {
   }
 
   function resetFilters() {
-    setFOrg(''); setFManager(''); setFName(''); setFEducation('')
+    setFOrg(''); setFManager(''); setFName(''); setFEducation(''); setFEngineer('')
     setFAge(''); setFSocial(''); setFCertType([]); setFCertStatus('')
+    resetFilterView()
   }
 
   /** 表格单行（平铺 / 分组两种视图共用）；grouped 时省略「归属建制」列 */
@@ -332,18 +358,16 @@ export default function PersonnelPage() {
             aria-label={`查看 ${p.name} 的详情`}
             className="inline-flex items-center gap-2 hover:text-navy-700 group text-left"
           >
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10.5px] font-bold flex-shrink-0 ${AVATAR_CLASSES[p.id % AVATAR_CLASSES.length]}`} aria-hidden="true">
-              {p.name[0]}
-            </span>
             <span className="group-hover:underline whitespace-nowrap">{p.name}</span>
           </button>
         </td>
-        <td className="font-mono text-xs text-slate-500">{p.idCard || '—'}</td>
+        <td className="text-xs text-slate-500 tabular-nums">{p.idCard || '—'}</td>
         <td className="text-xs text-center">{age !== null ? age : '—'}</td>
         <td className="text-xs">{p.education || '—'}</td>
+        <td className="text-xs">{p.engineer || '—'}</td>
         <td className="text-xs">{p.socialSecurity || '—'}</td>
         <td className="text-xs max-w-[140px] truncate" title={c?.certType || ''}>{c?.certType || '—'}</td>
-        <td className="text-xs max-w-[140px] truncate" title={c?.certNo || ''}>{c?.certNo || '—'}</td>
+        <td className="text-xs max-w-[150px] truncate" title={c?.certNo || ''}>{c?.certNo || '—'}</td>
         <td className={`text-xs tabular-nums ${EXPIRY_TEXT_CLASS[st]}`}>{c?.expiryDate || '—'}</td>
         <td>
           <span className={`badge ${STATUS_BADGE_CLASS[st]}`}>
@@ -352,7 +376,7 @@ export default function PersonnelPage() {
         </td>
         <td className="px-3 py-2.5">
           <div className="flex items-center gap-2">
-            <button onClick={() => setEditPerson(p)} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium whitespace-nowrap">编辑</button>
+            <button onClick={() => setEditPerson(p)} className="text-xs text-navy-700 hover:text-navy-900 font-medium whitespace-nowrap">编辑</button>
             <Link href={`/personnel/${p.id}`} className="text-xs text-navy-600 hover:text-navy-800 font-medium whitespace-nowrap">证件管理</Link>
             {c ? (
               <>
@@ -390,7 +414,7 @@ export default function PersonnelPage() {
   }
 
   return (
-    <div>
+    <div className="personnel-ledger">
       {/* 页头 */}
       <div className="page-header">
         <div className="page-header-bar" />
@@ -400,17 +424,12 @@ export default function PersonnelPage() {
         </div>
         <div className="self-center flex flex-wrap items-center gap-2">
           {importMsg && <span role="status" className="text-xs text-slate-500 bg-slate-100 rounded-md px-2.5 py-1">{importMsg}</span>}
-          <button onClick={downloadImportTemplate} className="btn-secondary !py-2 !px-3 !text-xs">
-            下载模板
-          </button>
-          <button onClick={() => fileRef.current?.click()}
-            className="btn-secondary !py-2 !px-3 !text-xs">
-            Excel 导入
-          </button>
+          <ActionMenu label="数据工具">
+            <button onClick={downloadImportTemplate}><FileDown size={16} aria-hidden="true" />下载导入模板</button>
+            <button onClick={() => fileRef.current?.click()}><FileUp size={16} aria-hidden="true" />Excel 导入</button>
+            <button onClick={exportExcel} disabled={loading || loadError || flatRows.length === 0}><Download size={16} aria-hidden="true" />导出 Excel</button>
+          </ActionMenu>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
-          <button onClick={exportExcel} className="btn-secondary !py-2 !px-3 !text-xs">
-            导出 Excel
-          </button>
           <button onClick={() => setShowBulk(true)} className="btn-secondary !py-2 !px-3 !text-xs">
             批量更新社保
           </button>
@@ -423,37 +442,45 @@ export default function PersonnelPage() {
             {regrouping ? '整理中…' : '按建制归类'}
           </button>
           <button onClick={() => setShowAdd(true)} className="btn-primary !py-2 !px-4 !text-sm">
-            + 添加人员
+            <Plus size={16} strokeWidth={1.7} aria-hidden="true" />添加人员
           </button>
         </div>
       </div>
 
+      <section className="ledger-summary" aria-label="人员台账概况">
+        <div><span>在册人员</span><strong>{loading || loadError ? '—' : people.length}<small>人</small></strong></div>
+        <div><span>证件总数</span><strong>{loading || loadError ? '—' : people.reduce((n, person) => n + person.certificates.length, 0)}<small>本</small></strong></div>
+        <div><span>归属建制</span><strong>{loading || loadError ? '—' : dropdowns.orgs.length}<small>个</small></strong></div>
+        <div><span>当前筛选</span><strong>{loading || loadError ? '—' : filtered.length}<small>人</small></strong></div>
+      </section>
+
       {/* 筛选栏 — 常用条件一行，低频条件折叠进「更多」 */}
       <div className="filter-bar">
+        <div className="ledger-filter-title"><h2>筛选人员</h2><span>按姓名、建制或证件状态快速查找</span></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">姓名</label>
-            <input value={fName} onChange={e => setFName(e.target.value)} placeholder="输入关键字…"
-              className="input-refined !py-1.5 !px-2.5 !text-xs" />
+            <label htmlFor="person-f-name" className="block text-xs font-medium text-slate-500 mb-1">姓名</label>
+            <input id="person-f-name" value={fName} onChange={e => changeFilter(setFName, e.target.value)} placeholder="输入姓名"
+              className="input-refined !py-2 !px-3 text-sm" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">归属建制</label>
-            <input value={fOrg} onChange={e => setFOrg(e.target.value)} placeholder="输入关键字…"
-              className="input-refined !py-1.5 !px-2.5 !text-xs" />
+            <label htmlFor="person-f-org" className="block text-xs font-medium text-slate-500 mb-1">归属建制</label>
+            <input id="person-f-org" value={fOrg} onChange={e => changeFilter(setFOrg, e.target.value)} placeholder="输入建制名称"
+              className="input-refined !py-2 !px-3 text-sm" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">负责人</label>
-            <input value={fManager} onChange={e => setFManager(e.target.value)} placeholder="输入关键字…"
-              className="input-refined !py-1.5 !px-2.5 !text-xs" />
+            <label htmlFor="person-f-manager" className="block text-xs font-medium text-slate-500 mb-1">负责人</label>
+            <input id="person-f-manager" value={fManager} onChange={e => changeFilter(setFManager, e.target.value)} placeholder="输入负责人姓名"
+              className="input-refined !py-2 !px-3 text-sm" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">证件类别</label>
-            <MultiSelect options={dropdowns.certTypes} selected={fCertType} onChange={setFCertType} />
+            <label htmlFor="person-f-type" className="block text-xs font-medium text-slate-500 mb-1">证件类别</label>
+            <MultiSelect id="person-f-type" ariaLabel="证件类别" options={dropdowns.certTypes} selected={fCertType} onChange={value => changeFilter(setFCertType, value)} />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">证件状态</label>
-            <select value={fCertStatus} onChange={e => setFCertStatus(e.target.value)}
-              className="input-refined !py-1.5 !px-2.5 !text-xs">
+            <label htmlFor="person-f-status" className="block text-xs font-medium text-slate-500 mb-1">证件状态</label>
+            <select id="person-f-status" value={fCertStatus} onChange={e => changeFilter(setFCertStatus, e.target.value)}
+              className="input-refined !py-2 !px-3 text-sm">
               <option value="">全部</option>
               <option value="expired">已过期</option>
               <option value="urgent">紧急（30天内）</option>
@@ -467,17 +494,25 @@ export default function PersonnelPage() {
         {showMoreFilters && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-3 pt-3 border-t border-slate-100">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">学历</label>
-              <select value={fEducation} onChange={e => setFEducation(e.target.value)}
-                className="input-refined !py-1.5 !px-2.5 !text-xs">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1" htmlFor="person-more-education">学历</label>
+              <select id="person-more-education" value={fEducation} onChange={e => changeFilter(setFEducation, e.target.value)}
+                className="input-refined !py-2 !px-3 text-sm">
                 <option value="">全部</option>
                 {dropdowns.educations.map(ed => <option key={ed} value={ed}>{ed}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">年龄</label>
-              <select value={fAge} onChange={e => setFAge(e.target.value)}
-                className="input-refined !py-1.5 !px-2.5 !text-xs">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1" htmlFor="person-more-engineer">工程师</label>
+              <select id="person-more-engineer" value={fEngineer} onChange={e => changeFilter(setFEngineer, e.target.value)}
+                className="input-refined !py-2 !px-3 text-sm">
+                <option value="">全部</option>
+                {dropdowns.engineers.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1" htmlFor="person-more-age">年龄</label>
+              <select id="person-more-age" value={fAge} onChange={e => changeFilter(setFAge, e.target.value)}
+                className="input-refined !py-2 !px-3 text-sm">
                 <option value="">全部</option>
                 <option value="30-">30岁及以下</option>
                 <option value="31-40">31-40岁</option>
@@ -487,9 +522,9 @@ export default function PersonnelPage() {
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">社保情况</label>
-              <select value={fSocial} onChange={e => setFSocial(e.target.value)}
-                className="input-refined !py-1.5 !px-2.5 !text-xs">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1" htmlFor="person-more-social">社保情况</label>
+              <select id="person-more-social" value={fSocial} onChange={e => changeFilter(setFSocial, e.target.value)}
+                className="input-refined !py-2 !px-3 text-sm">
                 <option value="">全部</option>
                 {dropdowns.socials.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -499,12 +534,13 @@ export default function PersonnelPage() {
 
         <div className="flex items-center gap-4 mt-3">
           <button onClick={() => setShowMoreFilters(v => !v)}
+            aria-expanded={showMoreFilters}
             className="text-xs text-slate-400 hover:text-slate-600 font-medium inline-flex items-center gap-1">
             {showMoreFilters ? '收起' : '更多筛选'}
             <svg className={`w-3 h-3 transition-transform ${showMoreFilters ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
-            {!showMoreFilters && (fEducation || fAge || fSocial) && (
+            {!showMoreFilters && (fEducation || fEngineer || fAge || fSocial) && (
               <span className="w-1.5 h-1.5 rounded-full bg-navy-600" aria-label="有生效的隐藏筛选" />
             )}
           </button>
@@ -517,6 +553,12 @@ export default function PersonnelPage() {
         </div>
       </div>
 
+      <div className="ledger-status-tabs" role="group" aria-label="证件状态快捷筛选">
+        {[{value:'',label:'全部人员'}, {value:'expired',label:'已过期'}, {value:'urgent',label:'30 天内到期'}, {value:'warning',label:'31–90 天内到期'}, {value:'none',label:'无证件'}].map(item => (
+          <button key={item.value} type="button" aria-pressed={fCertStatus === item.value} onClick={() => changeFilter(setFCertStatus, item.value)}>{item.label}</button>
+        ))}
+      </div>
+
       {/* 证件统计 */}
       {!loading && totalCerts > 0 && (
         <div className="mb-6">
@@ -525,8 +567,8 @@ export default function PersonnelPage() {
               <div className="section-label-bar" />
               <span className="section-label-text">证件统计{hasFilter ? '（已筛选）' : ''} · 共 {totalCerts} 张</span>
             </div>
-            <button onClick={() => setShowStats(s => !s)} className="text-xs text-slate-400 hover:text-slate-600 font-medium">
-              {showStats ? '收起 ▲' : '展开 ▼'}
+            <button onClick={() => setShowStats(s => !s)} aria-expanded={showStats} className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-navy-700 font-medium">
+              {showStats ? '收起分类统计' : '展开分类统计'}<ChevronDown size={14} aria-hidden="true" className={showStats ? 'rotate-180' : ''} />
             </button>
           </div>
 
@@ -536,7 +578,7 @@ export default function PersonnelPage() {
               {certStats.map(s => {
                 const pct = totalCerts ? Math.round((s.total / totalCerts) * 100) : 0
                 return (
-                  <div key={s.type} className="card-elevated p-3 transition-shadow hover:shadow-md">
+                  <div key={s.type} className="cert-distribution-card card-elevated p-3">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-xs font-semibold text-slate-700 truncate" title={s.type}>{s.type}</span>
                       <span className="text-[10px] font-medium text-slate-400 tabular-nums shrink-0">{pct}%</span>
@@ -544,13 +586,6 @@ export default function PersonnelPage() {
                     <div className="flex items-baseline gap-1 mt-1">
                       <span className="text-xl font-bold text-slate-900 tabular-nums leading-none">{s.total}</span>
                       <span className="text-[10px] text-slate-400">张</span>
-                    </div>
-                    <div className="flex h-1 rounded-full overflow-hidden bg-slate-100 mt-2 gap-px">
-                      {s.ok > 0      && <div style={{ flexGrow: s.ok }}      className="bg-emerald-400" />}
-                      {s.warning > 0 && <div style={{ flexGrow: s.warning }} className="bg-amber-400" />}
-                      {s.urgent > 0  && <div style={{ flexGrow: s.urgent }}  className="bg-orange-400" />}
-                      {s.expired > 0 && <div style={{ flexGrow: s.expired }} className="bg-red-500" />}
-                      {s.none > 0    && <div style={{ flexGrow: s.none }}    className="bg-slate-300" />}
                     </div>
                     <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
                       {s.ok > 0      && <StatDot color="bg-emerald-400" label="正常" n={s.ok} />}
@@ -572,7 +607,7 @@ export default function PersonnelPage() {
         <div className="card-elevated overflow-hidden" role="status" aria-live="polite" aria-busy="true">
           <span className="sr-only">数据加载中…</span>
           <div className="overflow-x-auto">
-            <table className="w-full table-premium table-compact">
+            <AlignedTable columns={COLUMNS} className="w-full table-premium table-compact">
               <thead>
                 <tr>
                   {COLUMNS.map(h => (
@@ -581,16 +616,21 @@ export default function PersonnelPage() {
                 </tr>
               </thead>
               <tbody>
-                <TableRowSkeleton cols={13} count={8} />
+                <TableRowSkeleton cols={COLUMNS.length} count={8} />
               </tbody>
-            </table>
+            </AlignedTable>
           </div>
+        </div>
+      ) : loadError ? (
+        <div className="card-elevated p-10 text-center" role="alert">
+          <RefreshCw size={24} strokeWidth={1.5} className="mx-auto mb-3 text-slate-400" aria-hidden="true" />
+          <p className="text-sm font-semibold text-slate-800">人员信息暂时无法加载</p>
+          <p className="mt-1 text-xs text-slate-500">请检查连接后重试，当前筛选条件会保留。</p>
+          <button className="btn-secondary mt-4" onClick={load}>重新加载</button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="card-elevated p-14 text-center" role="status">
-          <svg className="w-11 h-11 text-slate-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-          </svg>
+          <Users size={32} strokeWidth={1.5} className="text-slate-400 mx-auto mb-3" aria-hidden="true" />
           <div className="text-sm font-semibold text-slate-600">
             {people.length === 0 ? '暂无人员' : '没有符合条件的人员'}
           </div>
@@ -631,7 +671,7 @@ export default function PersonnelPage() {
           </div>
 
           <div className="overflow-x-auto">
-          <table className="w-full table-premium table-compact">
+          <AlignedTable columns={viewMode === 'grouped' ? COLUMNS.filter(h => h !== '归属建制') : COLUMNS} className="w-full table-premium table-compact">
             <caption className="sr-only">
               {viewMode === 'grouped'
                 ? `人员证件列表，按归属建制分为 ${groups.length} 组，共 ${flatRows.length} 行`
@@ -687,7 +727,7 @@ export default function PersonnelPage() {
                 {pagedRows.map((row, i) => renderRow(row, (pageSafe - 1) * PAGE_SIZE + i + 1, false))}
               </tbody>
             )}
-          </table>
+          </AlignedTable>
           </div>
         </div>
       )}
@@ -724,7 +764,7 @@ export default function PersonnelPage() {
       {showAdd && (
         <AddPersonModal
           initial={addPrefill ?? undefined}
-          options={{ orgs: dropdowns.orgs, managers: dropdowns.managers }}
+          options={{ orgs: dropdowns.orgs, managers: dropdowns.managers, engineers: dropdowns.engineers }}
           onClose={() => { setShowAdd(false); setAddPrefill(null) }}
           onSaved={load}
         />
@@ -733,7 +773,7 @@ export default function PersonnelPage() {
       {editPerson && (
         <EditPersonModal
           person={editPerson}
-          options={{ orgs: dropdowns.orgs, managers: dropdowns.managers }}
+          options={{ orgs: dropdowns.orgs, managers: dropdowns.managers, engineers: dropdowns.engineers }}
           onClose={() => setEditPerson(null)}
           onSaved={load}
         />

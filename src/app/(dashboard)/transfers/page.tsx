@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Modal } from '@/components/Modal'
@@ -276,7 +277,7 @@ export default function TransfersPage() {
         </div>
       ) : (
         <div className="card-elevated overflow-hidden">
-          <table className="w-full table-premium">
+          <AlignedTable columns={['方向','姓名','归属建制','负责人','证件类别','计划日期','备注', ...(tab === 'done' ? ['完成时间'] : []), '操作']} className="w-full table-premium">
             <thead>
               <tr>
                 {['方向','姓名','归属建制','负责人','证件类别','计划日期','备注', tab === 'done' ? '完成时间' : '', '操作'].filter(Boolean).map(h => (
@@ -332,7 +333,7 @@ export default function TransfersPage() {
                 )
               })}
             </tbody>
-          </table>
+          </AlignedTable>
         </div>
       )}
 

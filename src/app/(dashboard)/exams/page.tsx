@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { apiFetch, getJSON } from '@/lib/api'
@@ -247,7 +248,7 @@ export default function ExamsPage() {
       ) : (
         <div className="card-elevated overflow-hidden">
           <div className="overflow-x-auto">
-          <table className="w-full table-premium table-compact">
+          <AlignedTable columns={['建制','负责人','姓名','证件类别','报名日期','状态','证件编号','到期日期','人员库','证件','操作']} className="w-full table-premium table-compact">
             <thead>
               <tr>
                 {['建制','负责人','姓名','证件类别','报名日期','状态','证件编号','到期日期','人员库','证件','操作'].map(h => (
@@ -299,7 +300,7 @@ export default function ExamsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </AlignedTable>
           </div>
         </div>
       )}

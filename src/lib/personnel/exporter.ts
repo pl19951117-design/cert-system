@@ -29,6 +29,7 @@ export function buildPersonnelExportRows(
       '身份证号': p.idCard || '',
       '年龄':     age ?? '',
       '学历':     p.education || '',
+      '工程师':   p.engineer || '',
       '社保情况': p.socialSecurity || '',
       '证件类别': c?.certType || '',
       '证件编号': c?.certNo || '',
@@ -47,14 +48,14 @@ export function exportPersonnelExcel(flatRows: FlatRow[], maps: PrecomputedMaps)
 }
 
 export const IMPORT_TEMPLATE_HEADERS = [
-  '归属建制', '负责人', '姓名', '身份证号', '出生年份', '学历', '社保情况', '排序',
+  '归属建制', '负责人', '姓名', '身份证号', '出生年份', '学历', '工程师', '社保情况', '排序',
   '证件类别', '证件编号', '发证日期', '到期日期', '发证机构',
 ]
 
 export function downloadImportTemplate(): void {
   const ws = XLSX.utils.aoa_to_sheet([
     IMPORT_TEMPLATE_HEADERS,
-    ['一连', '张队长', '王小明', '110101199001011234', '1990', '大专', '已参保', '1',
+    ['一连', '张队长', '王小明', '110101199001011234', '1990', '大专', '中级工程师', '已参保', '1',
      '安全员证', 'AQ20240001', '2022-01-01', '2025-01-01', '省建设厅'],
   ])
   const wb = XLSX.utils.book_new()

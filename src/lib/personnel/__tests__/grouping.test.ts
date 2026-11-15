@@ -5,7 +5,7 @@ import type { Cert, FlatRow, Person } from '../types'
 
 const P = (id: number, orgName: string | null, manager: string | null = null): Person => ({
   id, name: `人${id}`, orgName, manager, idCard: null, birthYear: null,
-  education: null, socialSecurity: null, sortOrder: id, certificates: [],
+  education: null, engineer: null, socialSecurity: null, sortOrder: id, certificates: [],
 })
 const C = (id: number): Cert => ({ id, certType: 'A', certNo: null, issueDate: null, expiryDate: null, issuer: null })
 const row = (person: Person, cert: Cert | null): FlatRow => ({ person, cert })

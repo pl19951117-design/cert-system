@@ -19,6 +19,8 @@ export type Person = {
   idCard: string | null
   birthYear: number | null
   education: string | null
+  /** 工程师（职称，如「中级工程师」），自由填写 */
+  engineer: string | null
   socialSecurity: string | null
   sortOrder: number | null
   certificates: Cert[]
@@ -30,6 +32,7 @@ export type FilterState = {
   manager: string
   name: string
   education: string
+  engineer: string
   age: string          // '' | '30-' | '31-40' | '41-50' | '51-60' | '60+'
   social: string
   certTypes: string[]
@@ -53,6 +56,7 @@ export type DropdownOptions = {
   orgs: string[]
   managers: string[]
   educations: string[]
+  engineers: string[]
   socials: string[]
   certTypes: string[]
 }

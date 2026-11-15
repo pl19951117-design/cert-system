@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useMemo, useRef, useState } from 'react'
 import { Modal } from '@/components/Modal'
 import { Spinner } from '@/components/Spinner'
@@ -186,7 +187,7 @@ export function BulkSocialModal({ onClose, onSynced }: BulkSocialModalProps) {
                 <div className="p-6 text-center text-xs text-slate-400">没有符合条件的记录</div>
               ) : (
                 <div className="max-h-[360px] overflow-y-auto">
-                  <table className="w-full table-premium">
+                  <AlignedTable columns={['姓名','归属建制','负责人','身份证','社保情况']} className="w-full table-premium">
                     <thead className="sticky top-0 z-10 bg-white">
                       <tr>
                         <th>姓名</th>
@@ -211,7 +212,7 @@ export function BulkSocialModal({ onClose, onSynced }: BulkSocialModalProps) {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </AlignedTable>
                 </div>
               )}
             </div>

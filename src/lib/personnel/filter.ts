@@ -14,13 +14,13 @@ export type PersonnelView = {
 }
 
 export const EMPTY_FILTERS: FilterState = {
-  org: '', manager: '', name: '', education: '', age: '',
+  org: '', manager: '', name: '', education: '', engineer: '', age: '',
   social: '', certTypes: [], certStatus: '',
 }
 
 export function hasAnyFilter(f: FilterState): boolean {
   return !!(
-    f.org || f.manager || f.name || f.education || f.age ||
+    f.org || f.manager || f.name || f.education || f.engineer || f.age ||
     f.social || f.certTypes.length || f.certStatus
   )
 }
@@ -49,6 +49,7 @@ export function derivePersonnelView(
     if (f.manager   && !(p.manager || '').includes(f.manager)) continue
     if (f.name      && !p.name.includes(f.name))               continue
     if (f.education && p.education !== f.education)            continue
+    if (f.engineer  && p.engineer !== f.engineer)              continue
     if (f.age) {
       const age = maps.ageMap.get(p.id) ?? null
       if (age === null) continue

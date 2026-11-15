@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState } from 'react'
 import { apiFetch, getJSON } from '@/lib/api'
 import { toast } from '@/components/toast'
@@ -66,7 +67,7 @@ export default function RecyclePage() {
               <div className="card-elevated p-6 text-center text-xs text-slate-400">无</div>
             ) : (
               <div className="card-elevated overflow-hidden">
-                <table className="w-full table-premium">
+                <AlignedTable columns={['姓名','归属建制','删除时间','操作']} className="w-full table-premium">
                   <thead><tr>{['姓名', '归属建制', '删除时间', '操作'].map(h => <th key={h}>{h}</th>)}</tr></thead>
                   <tbody>
                     {data.persons.map(p => {
@@ -93,7 +94,7 @@ export default function RecyclePage() {
                       )
                     })}
                   </tbody>
-                </table>
+                </AlignedTable>
               </div>
             )}
           </div>
@@ -105,7 +106,7 @@ export default function RecyclePage() {
               <div className="card-elevated p-6 text-center text-xs text-slate-400">无</div>
             ) : (
               <div className="card-elevated overflow-hidden">
-                <table className="w-full table-premium">
+                <AlignedTable columns={['持证人','证件类别','证件编号','到期日期','删除时间','操作']} className="w-full table-premium">
                   <thead><tr>{['持证人', '证件类别', '证件编号', '到期日期', '删除时间', '操作'].map(h => <th key={h}>{h}</th>)}</tr></thead>
                   <tbody>
                     {data.certs.map(c => {
@@ -134,7 +135,7 @@ export default function RecyclePage() {
                       )
                     })}
                   </tbody>
-                </table>
+                </AlignedTable>
               </div>
             )}
           </div>

@@ -15,7 +15,7 @@ export function Skeleton({ className = '', width, height }: SkeletonProps) {
   return (
     <span
       aria-hidden="true"
-      className={`block rounded-md bg-slate-100 motion-safe:animate-pulse ${className}`}
+      className={`block rounded-md bg-slate-100 motion-safe:animate-pulse motion-reduce:animate-none ${className}`}
       style={{ width, height }}
     />
   )
@@ -26,7 +26,7 @@ export function TableRowSkeleton({ cols, count = 5 }: { cols: number; count?: nu
   return (
     <>
       {Array.from({ length: count }).map((_, r) => (
-        <tr key={r}>
+        <tr key={r} aria-hidden="true">
           {Array.from({ length: cols }).map((_, c) => (
             <td key={c} className="px-3 py-3">
               <Skeleton className="h-3 w-full max-w-[120px]" />

@@ -14,6 +14,7 @@ const personBase = z.object({
   idCard:         trimmedNullable.optional(),
   birthYear:      intNullable({ min: 1900, max: CURRENT_YEAR, field: '出生年份' }).optional(),
   education:      trimmedNullable.optional(),
+  engineer:       trimmedNullable.optional(),
   socialSecurity: trimmedNullable.optional(),
   sortOrder:      intNullable({ min: 0, max: 2_000_000_000, field: '排序值' }).optional(),
 })

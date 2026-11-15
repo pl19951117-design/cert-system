@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useState } from 'react'
 import { Modal } from '@/components/Modal'
 import { Spinner } from '@/components/Spinner'
@@ -90,7 +91,7 @@ export function ImportPreviewModal({ preview, onClose, onComplete }: ImportPrevi
         </fieldset>
 
         <div className="border border-slate-100 rounded-xl overflow-x-auto">
-          <table className="w-full table-premium">
+          <AlignedTable columns={['行','姓名','身份证','状态','问题']} className="w-full table-premium">
             <caption className="sr-only">导入数据预览前 {preview.sample.length} 行</caption>
             <thead>
               <tr>{['行', '姓名', '身份证', '状态', '问题'].map(h => (
@@ -112,7 +113,7 @@ export function ImportPreviewModal({ preview, onClose, onComplete }: ImportPrevi
                 </tr>
               ))}
             </tbody>
-          </table>
+          </AlignedTable>
         </div>
         {preview.total > preview.sample.length && (
           <p className="text-[11px] text-slate-400 mt-2">

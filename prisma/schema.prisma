@@ -29,11 +29,14 @@ model Account {
   createdAt   DateTime @default(now())
 
   members       AccountMember[]
+  safetyInspections SafetyInspection[]
+  legalCases LegalCase[]
   people        Person[]
   exams         Exam[]
   changeLogs    ChangeLog[]
   certReqs      CertRequirement[]
   transferPlans TransferPlan[]
+  certEducations CertEducation[]
 }
 
 // 转入/转出登记（待办清单）：登记「计划转入/转出的人」，防止忘记
@@ -80,6 +83,7 @@ model Person {
   idCard         String?
   birthYear      Int?
   education      String?
+  engineer       String?
   socialSecurity String?
   createdAt      DateTime @default(now())
   deletedAt      DateTime?
@@ -103,6 +107,26 @@ model Certificate {
 
   person      Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
   attachments Attachment[]
+  educations  CertEducation[]
+}
+
+// 继续教育登记：某本证件在某个到期年度是否已参加继续教育（一本证件每年度一条）
+model CertEducation {
+  id           Int      @id @default(autoincrement())
+  accountId    String
+  certId       Int
+  year         Int
+  attended     Boolean  @default(false)
+  attendedDate String?
+  note         String?
+  updatedBy    String?
+  updatedAt    DateTime @updatedAt
+
+  account     Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  certificate Certificate @relation(fields: [certId], references: [id], onDelete: Cascade)
+
+  @@unique([certId, year])
+  @@index([accountId, year])
 }
 
 model CertHistory {
@@ -214,4 +238,46 @@ model OpLog {
   ts       DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model SafetyInspection {
+  id Int @id @default(autoincrement())
+  accountId String
+  orgName String?
+  manager String?
+  projectName String
+  amount String?
+  inspectionDate String?
+  rectification String?
+  createdAt DateTime @default(now())
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  reports SafetyReport[]
+  @@index([accountId])
+}
+
+model SafetyReport {
+  id Int @id @default(autoincrement())
+  inspectionId Int
+  fileName String
+  mimeType String
+  fileSize Int
+  fileData Bytes
+  createdAt DateTime @default(now())
+  inspection SafetyInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  @@index([inspectionId])
+}
+
+model LegalCase {
+  id Int @id @default(autoincrement())
+  accountId String
+  orgName String?
+  manager String?
+  caseNo String
+  caseType String?
+  amount String?
+  hearingDate String?
+  result String?
+  createdAt DateTime @default(now())
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  @@index([accountId])
 }

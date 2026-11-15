@@ -22,7 +22,7 @@ type CertHistoryItem = {
 type Person = {
   id: number; name: string; orgName: string | null; manager: string | null
   idCard: string | null; birthYear: number | null; education: string | null
-  socialSecurity: string | null; sortOrder: number | null
+  engineer: string | null; socialSecurity: string | null; sortOrder: number | null
   certificates: Cert[]
 }
 
@@ -53,6 +53,7 @@ const PERSON_FIELDS = [
   { key: 'idCard', label: '身份证号' },
   { key: 'birthYear', label: '出生年份' },
   { key: 'education', label: '学历' },
+  { key: 'engineer', label: '工程师' },
   { key: 'socialSecurity', label: '社保号' },
   { key: 'sortOrder', label: '排序' },
 ]
@@ -193,6 +194,7 @@ export default function PersonDetailPage() {
       idCard: person.idCard || '',
       birthYear: person.birthYear?.toString() || '',
       education: person.education || '',
+      engineer: person.engineer || '',
       socialSecurity: person.socialSecurity || '',
       sortOrder: person.sortOrder?.toString() || '',
     })
@@ -282,11 +284,11 @@ export default function PersonDetailPage() {
           className="btn-secondary self-center !py-2 !px-4 !text-sm">打印档案</button>
       </div>
 
-      <div className="grid grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* 左：人员信息 */}
-        <div className="col-span-2">
+        <div className="xl:col-span-2 min-w-0">
           <div className="card-elevated overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/60">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">人员信息</span>
               {!editingPerson && (
                 <button onClick={startEditPerson} className="text-xs text-navy-600 hover:text-navy-800 font-medium">编辑</button>
@@ -314,9 +316,9 @@ export default function PersonDetailPage() {
             ) : (
               <div className="p-5 space-y-3">
                 {PERSON_FIELDS.map(f => (
-                  <div key={f.key} className="flex items-start justify-between gap-2">
+                  <div key={f.key} className="grid grid-cols-[88px_minmax(0,1fr)] items-start gap-3">
                     <span className="text-xs text-slate-400 flex-shrink-0 w-16">{f.label}</span>
-                    <span className="text-xs text-slate-700 text-right break-all">
+                    <span className="text-xs text-slate-700 text-left break-all">
                       {(person as any)[f.key] || '—'}
                     </span>
                   </div>
@@ -327,9 +329,9 @@ export default function PersonDetailPage() {
         </div>
 
         {/* 右：证件列表 */}
-        <div className="col-span-3">
+        <div className="xl:col-span-3 min-w-0">
           <div className="card-elevated overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/60">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">证件列表</span>
               <button
                 onClick={() => { setShowAddCert(true); setCertForm({}) }}

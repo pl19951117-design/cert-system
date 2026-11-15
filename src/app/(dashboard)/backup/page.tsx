@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState } from 'react'
 import { apiFetch, getJSON } from '@/lib/api'
 import { toast } from '@/components/toast'
@@ -150,7 +151,7 @@ export default function BackupPage() {
         <div className="card-elevated p-12 text-center text-sm text-slate-400">暂无备份，点击右上角「立即备份」</div>
       ) : (
         <div className="card-elevated overflow-hidden">
-          <table className="w-full table-premium">
+          <AlignedTable columns={['备份文件','时间','大小','操作']} className="w-full table-premium">
             <thead>
               <tr>{['备份文件', '时间', '大小', '操作'].map(h => <th key={h}>{h}</th>)}</tr>
             </thead>
@@ -185,7 +186,7 @@ export default function BackupPage() {
                 )
               })}
             </tbody>
-          </table>
+          </AlignedTable>
         </div>
       )}
     </div>

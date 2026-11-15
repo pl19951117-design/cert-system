@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { differenceInDays, parseISO } from 'date-fns'
+import { Modal } from '@/components/Modal'
+import { AlertTriangle } from 'lucide-react'
 
 type Cert = { id: number; expiryDate: string | null }
 type Counts = { expired: number; urgent: number; warning: number }
@@ -80,17 +82,13 @@ export function StartupReminder() {
   const close = () => setShow(false)
 
   return (
-    <div className="modal-overlay" onClick={close}>
-      <div className="modal-card max-w-md" onClick={e => e.stopPropagation()}>
+    <Modal title="启动提醒" onClose={close} size="sm" closeOnBackdrop>
         <div className="px-6 pt-6 pb-2 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
+          <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={20} strokeWidth={1.7} className="text-amber-600" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">启动提醒</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-sm text-slate-600 leading-relaxed">
               {total > 0 && `有 ${total} 张证件需要关注`}
               {total > 0 && overdueTransfers > 0 && ' · '}
               {overdueTransfers > 0 && `${overdueTransfers} 条转入转出登记已超期`}
@@ -100,17 +98,17 @@ export function StartupReminder() {
 
         {counts && (
           <div className="px-6 py-3 grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-red-100 bg-red-50/60 p-3 text-center">
+            <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
               <div className="text-2xl font-bold text-red-600 tabular-nums">{counts.expired}</div>
-              <div className="text-[11px] text-red-500 mt-0.5">已过期</div>
+              <div className="text-xs text-slate-500 mt-0.5">已过期</div>
             </div>
-            <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-center">
+            <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
               <div className="text-2xl font-bold text-orange-600 tabular-nums">{counts.urgent}</div>
-              <div className="text-[11px] text-orange-500 mt-0.5">30天内</div>
+              <div className="text-xs text-slate-500 mt-0.5">30 天内</div>
             </div>
-            <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3 text-center">
+            <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
               <div className="text-2xl font-bold text-amber-600 tabular-nums">{counts.warning}</div>
-              <div className="text-[11px] text-amber-500 mt-0.5">90天内</div>
+              <div className="text-xs text-slate-500 mt-0.5">90 天内</div>
             </div>
           </div>
         )}
@@ -135,7 +133,6 @@ export function StartupReminder() {
             <button onClick={() => { close(); router.push('/alerts') }} className="btn-primary flex-1">查看预警清单</button>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

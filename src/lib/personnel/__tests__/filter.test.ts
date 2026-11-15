@@ -29,7 +29,7 @@ function person(id: number, name: string, certs: Cert[], extra: Partial<Person> 
   return {
     id, name,
     orgName: null, manager: null, idCard: null, birthYear: null,
-    education: null, socialSecurity: null, sortOrder: null,
+    education: null, engineer: null, socialSecurity: null, sortOrder: null,
     certificates: certs,
     ...extra,
   }
@@ -138,5 +138,16 @@ describe('derivePersonnelView', () => {
     expect(derivePersonnelView(people, { ...EMPTY_FILTERS, social: '已参保' }, maps).filtered.map(p => p.id)).toEqual([1])
     // 1980年生 — 2026 算 46 岁
     expect(derivePersonnelView(people, { ...EMPTY_FILTERS, age: '41-50' }, maps).filtered.map(p => p.id)).toEqual([1])
+  })
+
+  it('工程师筛选：精确匹配，未填写的人被排除', () => {
+    const people = [
+      person(1, '张三', [], { engineer: '中级工程师' }),
+      person(2, '李四', [], { engineer: '高级工程师' }),
+      person(3, '王五', []),
+    ]
+    const maps = buildPrecomputedMaps(people, FIXED_NOW)
+    expect(derivePersonnelView(people, { ...EMPTY_FILTERS, engineer: '高级工程师' }, maps).filtered.map(p => p.id)).toEqual([2])
+    expect(derivePersonnelView(people, EMPTY_FILTERS, maps).filtered).toHaveLength(3)
   })
 })

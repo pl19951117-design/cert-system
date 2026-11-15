@@ -1,5 +1,6 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserManagement } from './_components/UserManagement'
@@ -7,19 +8,13 @@ import { LanSharing } from './_components/LanSharing'
 
 type Account = { id: string; displayName: string | null; createdAt: string }
 type CertType = { id: number; name: string; description: string | null; isActive: boolean; sortOrder: number }
-type CertReq = { id: number; orgName: string | null; certType: string }
 
 export default function AdminPage() {
   const router = useRouter()
-  const [tab, setTab] = useState<'accounts' | 'users' | 'lan' | 'certtypes' | 'reqs'>('accounts')
+  const [tab, setTab] = useState<'accounts' | 'users' | 'lan' | 'certtypes'>('accounts')
   const [currentUserId, setCurrentUserId] = useState(0)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [certTypes, setCertTypes] = useState<CertType[]>([])
-  const [reqs, setReqs] = useState<CertReq[]>([])
-  const [newReqOrg, setNewReqOrg] = useState('')
-  const [newReqType, setNewReqType] = useState('')
-  const [reqErr, setReqErr] = useState('')
-  const [reqSaving, setReqSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -39,15 +34,13 @@ export default function AdminPage() {
 
   async function loadData() {
     setLoading(true)
-    const [accs, types, rqs, me] = await Promise.all([
+    const [accs, types, me] = await Promise.all([
       fetch('/api/admin/accounts').then(r => r.json()),
       fetch('/api/admin/cert-types').then(r => r.json()),
-      fetch('/api/admin/cert-requirements').then(r => r.json()),
       fetch('/api/auth/me').then(r => r.json()).catch(() => ({})),
     ])
     setAccounts(Array.isArray(accs) ? accs : [])
     setCertTypes(Array.isArray(types) ? types : [])
-    setReqs(Array.isArray(rqs) ? rqs : [])
     if (me?.userId) setCurrentUserId(me.userId)
     setLoading(false)
   }
@@ -125,34 +118,11 @@ export default function AdminPage() {
     loadData()
   }
 
-  async function createReq(e: React.FormEvent) {
-    e.preventDefault()
-    setReqErr('')
-    if (!newReqType.trim()) { setReqErr('请选择证件类别'); return }
-    setReqSaving(true)
-    const res = await fetch('/api/admin/cert-requirements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orgName: newReqOrg, certType: newReqType }),
-    })
-    const data = await res.json()
-    setReqSaving(false)
-    if (!res.ok) { setReqErr(data.error || '添加失败'); return }
-    setNewReqOrg(''); setNewReqType('')
-    loadData()
-  }
-
-  async function deleteReq(id: number) {
-    await fetch(`/api/admin/cert-requirements/${id}`, { method: 'DELETE' })
-    loadData()
-  }
-
   const tabs = [
     { key: 'accounts', label: '账套管理' },
     { key: 'users', label: '用户管理' },
     { key: 'lan', label: '局域网共享' },
     { key: 'certtypes', label: '证件类型' },
-    { key: 'reqs', label: '证件要求' },
   ] as const
 
   return (
@@ -190,17 +160,17 @@ export default function AdminPage() {
       ) : tab === 'lan' ? (
         <LanSharing />
       ) : tab === 'accounts' ? (
-        <div className="grid grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
           {/* 左：账套列表 */}
-          <div className="col-span-3">
+          <div className="xl:col-span-3 min-w-0">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">现有账套</div>
             {accounts.length === 0 ? (
               <div className="card-elevated p-8 text-center text-sm text-slate-400">
                 暂无账套，请在右侧创建
               </div>
             ) : (
-              <div className="card-elevated overflow-hidden">
-                <table className="w-full table-premium">
+              <div className="card-elevated overflow-x-auto">
+                <AlignedTable columns={['顺序','账套ID','显示名称','创建时间','操作']} className="w-full table-premium">
                   <thead>
                     <tr>
                       {['顺序', '账套ID', '显示名称', '创建时间', '操作'].map(h => (
@@ -262,13 +232,13 @@ export default function AdminPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </AlignedTable>
               </div>
             )}
           </div>
 
           {/* 右：创建表单 */}
-          <div className="col-span-2">
+          <div className="xl:col-span-2 min-w-0">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">创建账套</div>
             <form onSubmit={createAccount} className="card-elevated p-5 space-y-4">
               <div>
@@ -304,17 +274,17 @@ export default function AdminPage() {
           </div>
         </div>
       ) : tab === 'certtypes' ? (
-        <div className="grid grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
           {/* 左：证件类型列表 */}
-          <div className="col-span-3">
+          <div className="xl:col-span-3 min-w-0">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">证件类型列表</div>
             {certTypes.length === 0 ? (
               <div className="card-elevated p-8 text-center text-sm text-slate-400">
                 暂无证件类型，请在右侧添加
               </div>
             ) : (
-              <div className="card-elevated overflow-hidden">
-                <table className="w-full table-premium">
+              <div className="card-elevated overflow-x-auto">
+                <AlignedTable columns={['证件类型','说明','状态','操作']} className="w-full table-premium">
                   <thead>
                     <tr>
                       {['证件类型', '说明', '状态', '操作'].map(h => (
@@ -350,13 +320,13 @@ export default function AdminPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </AlignedTable>
               </div>
             )}
           </div>
 
           {/* 右：添加表单 */}
-          <div className="col-span-2">
+          <div className="xl:col-span-2 min-w-0">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">添加证件类型</div>
             <form onSubmit={createCertType} className="card-elevated p-5 space-y-4">
               <div>
@@ -390,67 +360,7 @@ export default function AdminPage() {
             </form>
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-5 gap-6">
-          {/* 左：要求列表 */}
-          <div className="col-span-3">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">证件要求（用于合规报表）</div>
-            {reqs.length === 0 ? (
-              <div className="card-elevated p-8 text-center text-sm text-slate-400">
-                暂无要求。设定「某建制/全账套 必须持有 某证件」后，合规报表会自动算出谁缺证/过期。
-              </div>
-            ) : (
-              <div className="card-elevated overflow-hidden">
-                <table className="w-full table-premium">
-                  <thead>
-                    <tr>{['适用范围', '必备证件类别', '操作'].map(h => <th key={h}>{h}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {reqs.map(r => (
-                      <tr key={r.id}>
-                        <td>{r.orgName ? r.orgName : <span className="badge badge-blue">全账套</span>}</td>
-                        <td className="font-medium text-slate-800">{r.certType}</td>
-                        <td>
-                          <button onClick={() => deleteReq(r.id)} className="text-xs text-slate-400 hover:text-red-500 transition-colors">删除</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* 右：添加要求 */}
-          <div className="col-span-2">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">添加要求</div>
-            <form onSubmit={createReq} className="card-elevated p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">适用建制</label>
-                <input value={newReqOrg} onChange={e => setNewReqOrg(e.target.value)}
-                  placeholder="留空 = 适用全账套所有人" className="input-refined" />
-                <p className="text-[11px] text-slate-400 mt-1">填某建制名则只对该建制人员生效</p>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">必备证件类别 <span className="text-red-400">*</span></label>
-                {certTypes.length > 0 ? (
-                  <select value={newReqType} onChange={e => setNewReqType(e.target.value)} className="input-refined">
-                    <option value="">请选择…</option>
-                    {certTypes.filter(t => t.isActive).map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-                  </select>
-                ) : (
-                  <input value={newReqType} onChange={e => setNewReqType(e.target.value)}
-                    placeholder="如：C1（建议先在“证件类型”里维护）" className="input-refined" />
-                )}
-              </div>
-              {reqErr && <div className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{reqErr}</div>}
-              <button type="submit" disabled={reqSaving} className="btn-primary w-full">
-                {reqSaving ? '添加中…' : '添加要求'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      ) : null}
     </div>
   )
 }

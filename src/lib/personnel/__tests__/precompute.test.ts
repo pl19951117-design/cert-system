@@ -5,7 +5,7 @@ import type { Person } from '../types'
 const p = (id: number, over: Partial<Person> = {}): Person => ({
   id, name: `P${id}`,
   orgName: null, manager: null, idCard: null, birthYear: null,
-  education: null, socialSecurity: null, sortOrder: null,
+  education: null, engineer: null, socialSecurity: null, sortOrder: null,
   certificates: [],
   ...over,
 })

@@ -1,5 +1,7 @@
 'use client'
 
+import { AlignedTable } from '@/components/aligned-table'
+
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { differenceInDays, parseISO } from 'date-fns'
@@ -12,7 +14,7 @@ type Cert = {
 type Person = {
   id: number; name: string; orgName: string | null; manager: string | null
   idCard: string | null; birthYear: number | null; education: string | null
-  socialSecurity: string | null; certificates: Cert[]
+  engineer: string | null; socialSecurity: string | null; certificates: Cert[]
 }
 
 function getAge(idCard: string | null, birthYear: number | null): string {
@@ -56,6 +58,7 @@ export default function PersonPrintPage() {
     ['身份证号', person.idCard || '—'],
     ['年龄', getAge(person.idCard, person.birthYear)],
     ['学历', person.education || '—'],
+    ['工程师', person.engineer || '—'],
     ['社保情况', person.socialSecurity || '—'],
     ['证件数量', String(person.certificates.length)],
   ]
@@ -94,7 +97,7 @@ export default function PersonPrintPage() {
         {person.certificates.length === 0 ? (
           <div className="text-sm text-slate-400 py-4 text-center" style={{ border: '1px solid #e2e8f0' }}>暂无证件</div>
         ) : (
-          <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+          <AlignedTable columns={['序号','证件类别','证件编号','发证日期','到期日期','发证机构','状态']} className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f1f5f9' }}>
                 {['序号', '证件类别', '证件编号', '发证日期', '到期日期', '发证机构', '状态'].map(h => (
@@ -118,7 +121,7 @@ export default function PersonPrintPage() {
                 )
               })}
             </tbody>
-          </table>
+          </AlignedTable>
         )}
 
         <div className="mt-10 flex justify-between text-xs text-slate-400">
