@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, RefreshCw, Search, FileText, Download, Trash2 } from 'lucide-react'
+import { AttachmentPreview } from '@/components/attachment-preview'
 import { Modal } from '@/components/Modal'
 import { Spinner } from '@/components/Spinner'
 import { TableRowSkeleton } from '@/components/Skeleton'
@@ -125,6 +126,7 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
   const [reportDelete, setReportDelete] = useState<number | null>(null)
   const [files, setFiles] = useState<File[]>([])
   const [fileKey, setFileKey] = useState(0)
+  const [preview, setPreview] = useState<{ source: string; fileName: string } | null>(null)
 
   function normalizeAmount() {
     // Validate before scheduling an updater: React can run state updaters later,
@@ -185,7 +187,7 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
     finally { setBusy(false) }
   }
 
-  return <Modal title={`${record ? config.singular + '详情' : '新增' + config.singular}`} onClose={() => { if (!busy) onClose() }} size="lg">
+  return <><Modal title={`${record ? config.singular + '详情' : '新增' + config.singular}`} onClose={() => { if (!busy) onClose() }} size="lg">
     <form onSubmit={save} className="p-6 space-y-5">
       <div className="record-form-grid">{config.fields.map(field => <label key={field.key} className={`record-field ${field.type === 'textarea' ? 'sm:col-span-2' : ''}`} htmlFor={`record-${field.key}`}>
         <span>{field.label}{field.type === 'money' ? '（元）' : ''}{field.required && <span className="text-red-500"> *</span>}</span>
@@ -196,7 +198,7 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
         <h3 id="report-heading" className="text-sm font-semibold mb-3">检查报告</h3>
         {record?.reports?.length ? <ul className="space-y-3">{record.reports.map(report => <li key={report.id} className="record-report-row">
           <div className="min-w-0"><p className="text-sm break-all">{report.fileName}</p><p className="text-xs text-slate-500">{(report.fileSize / 1024).toFixed(1)} KB</p></div>
-          <div className="flex items-center gap-3 shrink-0"><a className="record-name" href={`/api/${kind}/${record.id}/reports?report=${report.id}&inline=1`} target="_blank" rel="noreferrer">查看</a><a className="record-name" href={`/api/${kind}/${record.id}/reports?report=${report.id}`} aria-label={`下载 ${report.fileName}`}><Download size={16} aria-hidden /></a>{canWrite && <button type="button" className="text-red-500" disabled={busy} onClick={() => setReportDelete(report.id)} aria-label={`删除 ${report.fileName}`}><Trash2 size={16} aria-hidden /></button>}</div>
+          <div className="flex items-center gap-3 shrink-0"><button type="button" className="record-name" onClick={() => setPreview({ source: `/api/${kind}/${record.id}/reports?report=${report.id}&inline=1`, fileName: report.fileName })}>查看</button><a className="record-name" href={`/api/${kind}/${record.id}/reports?report=${report.id}`} aria-label={`下载 ${report.fileName}`}><Download size={16} aria-hidden /></a>{canWrite && <button type="button" className="text-red-500" disabled={busy} onClick={() => setReportDelete(report.id)} aria-label={`删除 ${report.fileName}`}><Trash2 size={16} aria-hidden /></button>}</div>
           {reportDelete === report.id && <div className="record-inline-confirm"><span>删除此报告？</span><button type="button" disabled={busy} className="text-red-600" onClick={() => void removeReport(report.id)}>确认删除</button><button type="button" disabled={busy} onClick={() => setReportDelete(null)}>取消</button></div>}
         </li>)}</ul> : <p className="text-sm text-slate-400">尚未上传报告</p>}
         {canWrite && <div className="mt-4"><label htmlFor="record-files" className="block text-xs text-slate-500 mb-2">添加报告 · 支持 PDF、图片、Word、Excel、TXT，每份不超过 20 MB</label><input key={fileKey} id="record-files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt" disabled={busy} className="input-refined text-xs" onChange={e => {
@@ -213,4 +215,6 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
       </div>
     </form>
   </Modal>
+    {preview && <AttachmentPreview key={preview.source} {...preview} onClose={() => setPreview(null)} />}
+  </>
 }
