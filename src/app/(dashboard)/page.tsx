@@ -1,3 +1,5 @@
+import { BusinessYearSummary } from '@/components/business-year-summary'
+import { computeBusinessYearStats } from '@/lib/business-year-stats'
 import { AlignedTable } from '@/components/aligned-table'
 import Link from 'next/link'
 import { getSession, decodeAccountCookie } from '@/lib/auth'
@@ -42,7 +44,7 @@ export default async function DashboardPage() {
     )
   }
 
-  const [people, certs, exams] = await Promise.all([
+  const [people, certs, exams, inspections, legalCases] = await Promise.all([
     prisma.person.findMany({ where: { accountId: account, deletedAt: null } }),
     prisma.certificate.findMany({
       where: { deletedAt: null, person: { accountId: account, deletedAt: null } },
@@ -52,7 +54,10 @@ export default async function DashboardPage() {
       where: { accountId: account },
       select: { isPassed: true, certType: true, personId: true, regDate: true },
     }),
+    prisma.safetyInspection.findMany({ where: { accountId: account }, select: { projectName: true, inspectionDate: true } }),
+    prisma.legalCase.findMany({ where: { accountId: account }, select: { businessCategory: true, hearingDate: true } }),
   ])
+  const businessStats = computeBusinessYearStats(inspections, legalCases, String(new Date().getFullYear()))
   // 考试情况（报名 / 通过率 / 按类别 / 待准入人员库）
   const examStats = computeExamStats(exams)
 
@@ -166,6 +171,8 @@ export default async function DashboardPage() {
           <div className="metric-foot"><span>已过期 {expired} · 90 天内 {urgent + warning}</span><ArrowUpRight size={16} aria-hidden="true" /></div>
         </Link>
       </section>
+
+      <BusinessYearSummary stats={businessStats} currentYear={String(now)} />
 
       <div className="overview-primary-grid">
         <section className="overview-trend-panel card-elevated">

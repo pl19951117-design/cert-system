@@ -19,9 +19,12 @@ describe('ledger units and Excel', () => {
     const bytes = XLSX.write(ledgerWorkbook('safety-inspections', [row]), { type: 'buffer', bookType: 'xlsx' })
     expect(parseLedgerSheet('safety-inspections', XLSX.read(bytes))[0]).toMatchObject({ projectName: '项目', amount: '12345.67', rectification: '整改中', inspectionDate: '2026-11-17' })
   })
-  it('round trips category, type and yuan amounts for legal cases', () => {
+  it('round trips category, type and 万元 amounts for legal cases', () => {
     const row = { id: 1, orgName: null, manager: null, caseNo: '001', businessCategory: '应诉', caseType: '工伤纠纷', amount: '25.00' } satisfies BusinessRecord
-    expect(parseLedgerSheet('legal-cases', ledgerWorkbook('legal-cases', [row]))[0]).toMatchObject({ caseNo: '001', businessCategory: '应诉', caseType: '工伤纠纷', amount: '25.00' })
+    const book = ledgerWorkbook('legal-cases', [row])
+    expect(book.Sheets['台账'].F1.v).toBe('涉案金额（万元）')
+    expect(book.Sheets['台账'].F2.v).toBe('0.0025')
+    expect(parseLedgerSheet('legal-cases', book)[0]).toMatchObject({ caseNo: '001', businessCategory: '应诉', caseType: '工伤纠纷', amount: '25.00' })
   })
   it('provides an empty template and rejects wrong-unit headers', () => {
     const book = ledgerWorkbook('safety-inspections', [], true)

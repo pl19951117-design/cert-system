@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, RefreshCw, Search, FileText, Download, Trash2 } from 'lucide-react'
+import { businessYear, matchesBusinessYear } from '@/lib/business-year-stats'
 import { LedgerExcel } from '@/components/ledger-excel'
 import { AttachmentPreview } from '@/components/attachment-preview'
 import { Modal } from '@/components/Modal'
@@ -10,7 +11,7 @@ import { TableRowSkeleton } from '@/components/Skeleton'
 import { AlignedTable } from '@/components/aligned-table'
 import { toast } from '@/components/toast'
 import { apiFetch, getJSON } from '@/lib/api'
-import { RECTIFICATIONS, BUSINESS_CATEGORIES, CASE_TYPES, yuanToWan, wanToYuan, formatMoney, normalizeMoney, type BusinessKind, type BusinessRecord } from '@/lib/business-records'
+import { RECTIFICATIONS, BUSINESS_CATEGORIES, CASE_TYPES, yuanToWan, wanToYuan, type BusinessKind, type BusinessRecord } from '@/lib/business-records'
 
 type Field = { key: string; label: string; type?: 'date' | 'money' | 'textarea'; required?: boolean; options?: readonly string[] }
 const COMMON: Field[] = [{ key: 'orgName', label: '归属建制' }, { key: 'manager', label: '负责人' }]
@@ -42,6 +43,8 @@ export function BusinessLedger({ kind, canWrite }: { kind: BusinessKind; canWrit
   const [search, setSearch] = useState('')
   const [org, setOrg] = useState('')
   const [manager, setManager] = useState('')
+  const [year, setYear] = useState('')
+  const years = [...new Set(rows.map(row => businessYear(kind === 'safety-inspections' ? row.inspectionDate : row.hearingDate)).filter(Boolean))].sort().reverse()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [page, setPage] = useState(1)
@@ -64,15 +67,15 @@ export function BusinessLedger({ kind, canWrite }: { kind: BusinessKind; canWrit
     const date = kind === 'safety-inspections' ? row.inspectionDate : row.hearingDate
     const haystack = [row.orgName, row.manager, row.projectName, row.caseNo, row.businessCategory, row.caseType, row.rectification, row.result,
       ...(row.reports || []).map(report => report.fileName)].filter(Boolean).join(' ').toLowerCase()
-    return haystack.includes(search.trim().toLowerCase()) && (!org || row.orgName === org) && (!manager || row.manager === manager)
+    return matchesBusinessYear(date, year) && haystack.includes(search.trim().toLowerCase()) && (!org || row.orgName === org) && (!manager || row.manager === manager)
       && (!from || !!date && date >= from) && (!to || !!date && date <= to)
-  }), [rows, search, org, manager, from, to, kind])
+  }), [rows, search, org, manager, from, to, kind, year])
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const current = Math.min(page, pages)
   const visible = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
   const orgs = [...new Set(rows.map(row => row.orgName).filter(Boolean))] as string[]
   const managers = [...new Set(rows.map(row => row.manager).filter(Boolean))] as string[]
-  const clear = () => { setSearch(''); setOrg(''); setManager(''); setFrom(''); setTo(''); setPage(1) }
+  const clear = () => { setSearch(''); setOrg(''); setManager(''); setFrom(''); setTo(''); setYear(''); setPage(1) }
   const value = (row: BusinessRecord, key: string) => row[key as keyof BusinessRecord] as string | null | undefined
   const nameCell = (row: BusinessRecord) => <button type="button" className="record-name" onClick={() => setTarget(row)} title="查看详情">{value(row, config.name)}</button>
 
@@ -92,21 +95,22 @@ export function BusinessLedger({ kind, canWrite }: { kind: BusinessKind; canWrit
         </label>
         <label className="record-filter" htmlFor={`${kind}-org`}>归属建制<select id={`${kind}-org`} className="input-refined" value={org} onChange={e => { setOrg(e.target.value); setPage(1) }}><option value="">全部建制</option>{orgs.map(v => <option key={v}>{v}</option>)}</select></label>
         <label className="record-filter" htmlFor={`${kind}-manager`}>负责人<select id={`${kind}-manager`} className="input-refined" value={manager} onChange={e => { setManager(e.target.value); setPage(1) }}><option value="">全部负责人</option>{managers.map(v => <option key={v}>{v}</option>)}</select></label>
+        <label className="record-filter" htmlFor={`${kind}-year`}>年度<select id={`${kind}-year`} className="input-refined" value={year} onChange={e => { setYear(e.target.value); setPage(1) }}><option value="">全部年度</option>{years.map(y => <option key={y} value={y}>{y} 年</option>)}<option value="undated">未填日期</option></select></label>
         <label className="record-filter" htmlFor={`${kind}-from`}>起始日期<input id={`${kind}-from`} type="date" className="input-refined" value={from} max={to || undefined} onChange={e => { setFrom(e.target.value); setPage(1) }} /></label>
         <label className="record-filter" htmlFor={`${kind}-to`}>截止日期<input id={`${kind}-to`} type="date" className="input-refined" value={to} min={from || undefined} onChange={e => { setTo(e.target.value); setPage(1) }} /></label>
         <button type="button" className="btn-ghost" onClick={clear}>重置</button>
       </div>
-      <div className="record-table-note"><span aria-live="polite">{loading ? '正在加载…' : `共 ${filtered.length} 条记录`}</span><span>金额单位：{kind === 'safety-inspections' ? '万元' : '元'} · 点击{kind === 'safety-inspections' ? '项目名称' : '案件编号'}查看详情</span></div>
+      <div className="record-table-note"><span aria-live="polite">{loading ? '正在加载…' : `共 ${filtered.length} 条记录`}</span><span>金额单位：万元 · 点击{kind === 'safety-inspections' ? '项目名称' : '案件编号'}查看详情</span></div>
       {error ? <div className="p-10 text-center" role="alert"><p className="text-red-600 mb-3">{error}</p><button className="btn-secondary" onClick={() => void load()}>重新加载</button></div> : <div className="overflow-x-auto">
         <AlignedTable columns={config.columns} className="table-premium w-full record-table">
-          <caption className="sr-only">{config.title}，金额单位为{kind === 'safety-inspections' ? '万元' : '元'}</caption>
+          <caption className="sr-only">{config.title}，金额单位为万元</caption>
           <thead><tr>{config.columns.map((label, i) => <th key={label} scope="col" className={i === 0 || label.endsWith('时间') ? 'text-center' : label.endsWith('金额') ? 'text-right' : 'text-left'}>{label}</th>)}</tr></thead>
           <tbody>{loading ? <TableRowSkeleton cols={config.columns.length} count={5} /> : visible.length ? visible.map((row, index) => <tr key={row.id}>
             <td className="text-center tabular-nums text-slate-400">{(current - 1) * PAGE_SIZE + index + 1}</td>
             <td>{row.orgName || '—'}</td><td>{row.manager || '—'}</td><td>{nameCell(row)}</td>
             {kind === 'legal-cases' && <td>{row.businessCategory || '—'}</td>}
             {kind === 'legal-cases' && <td>{row.caseType || '—'}</td>}
-            <td className="text-right tabular-nums whitespace-nowrap">{kind === 'safety-inspections' ? yuanToWan(row.amount) || '—' : formatMoney(row.amount)}</td>
+            <td className="text-right tabular-nums whitespace-nowrap">{yuanToWan(row.amount) || '—'}</td>
             <td className="text-center tabular-nums whitespace-nowrap">{value(row, config.date) || '—'}</td>
             {kind === 'safety-inspections' && <td>{row.reports?.length ? <button className="record-name inline-flex items-center gap-1.5" onClick={() => setTarget(row)}><FileText size={14} aria-hidden />{row.reports.length} 份报告</button> : <span className="text-slate-400">未上传</span>}</td>}
             <td className="record-long-text">{(kind === 'safety-inspections' ? row.rectification : row.result) || '—'}</td>
@@ -122,7 +126,7 @@ export function BusinessLedger({ kind, canWrite }: { kind: BusinessKind; canWrit
 function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: BusinessKind; initial: BusinessRecord | 'new'; canWrite: boolean; onClose: () => void; onChanged: () => void }) {
   const config = CONFIG[kind]
   const [record, setRecord] = useState<BusinessRecord | null>(initial === 'new' ? null : initial)
-  const [form, setForm] = useState<Record<string, string>>(() => Object.fromEntries(config.fields.map(field => [field.key, initial === 'new' ? '' : field.key === 'amount' && kind === 'safety-inspections' ? yuanToWan(initial.amount) : String(initial[field.key as keyof BusinessRecord] ?? '')])))
+  const [form, setForm] = useState<Record<string, string>>(() => Object.fromEntries(config.fields.map(field => [field.key, initial === 'new' ? '' : field.key === 'amount' ? yuanToWan(initial.amount) : String(initial[field.key as keyof BusinessRecord] ?? '')])))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -135,8 +139,8 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
     // Validate before scheduling an updater: React can run state updaters later,
     // outside a surrounding try/catch, so an invalid amount must never throw there.
     try {
-      const normalized = kind === 'safety-inspections' ? wanToYuan(form.amount) : normalizeMoney(form.amount) || ''
-      setForm(previous => ({ ...previous, amount: kind === 'safety-inspections' ? yuanToWan(normalized) : normalized || '' }))
+      const normalized = wanToYuan(form.amount)
+      setForm(previous => ({ ...previous, amount: yuanToWan(normalized) }))
       setError('')
     } catch (e) { setError((e as Error).message) }
   }
@@ -155,10 +159,10 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
 
   async function save(event: React.FormEvent) {
     event.preventDefault(); setError('')
-    try { if (kind === 'safety-inspections') wanToYuan(form.amount); else normalizeMoney(form.amount) } catch (e) { setError((e as Error).message); return }
+    try { wanToYuan(form.amount) } catch (e) { setError((e as Error).message); return }
     setBusy(true)
     try {
-      const response = await apiFetch(`/api/${kind}${record ? `/${record.id}` : ''}`, { method: record ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, amount: kind === 'safety-inspections' ? wanToYuan(form.amount) : form.amount }) })
+      const response = await apiFetch(`/api/${kind}${record ? `/${record.id}` : ''}`, { method: record ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, amount: wanToYuan(form.amount) }) })
       const saved = await response.json() as BusinessRecord
       setRecord(saved)
       try { await upload(saved.id) } catch (e) {
@@ -193,7 +197,7 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
   return <><Modal title={`${record ? config.singular + '详情' : '新增' + config.singular}`} onClose={() => { if (!busy) onClose() }} size="lg">
     <form onSubmit={save} className="p-6 space-y-5">
       <div className="record-form-grid">{config.fields.map(field => <label key={field.key} className={`record-field ${field.options ? <select id={`record-${field.key}`} className="input-refined" value={form[field.key]} disabled={!canWrite || busy} onChange={e => setForm({ ...form, [field.key]: e.target.value })}><option value="">请选择</option>{form[field.key] && !field.options.includes(form[field.key]) && <option value={form[field.key]}>{form[field.key]}（历史值）</option>}{field.options.map(option => <option key={option}>{option}</option>)}</select> : field.type === 'textarea' ? 'sm:col-span-2' : ''}`} htmlFor={`record-${field.key}`}>
-        <span>{field.label}{field.type === 'money' ? (kind === 'safety-inspections' ? '（万元）' : '（元）') : ''}{field.required && <span className="text-red-500"> *</span>}</span>
+        <span>{field.label}{field.type === 'money' ? '（万元）' : ''}{field.required && <span className="text-red-500"> *</span>}</span>
         {field.type === 'textarea' ? <textarea id={`record-${field.key}`} className="input-refined min-h-24 resize-y" value={form[field.key]} disabled={!canWrite || busy} maxLength={10000} onChange={e => setForm({ ...form, [field.key]: e.target.value })} />
           : <input id={`record-${field.key}`} className={`input-refined ${field.type === 'money' ? 'text-right tabular-nums' : ''}`} type={field.type === 'date' ? 'date' : 'text'} inputMode={field.type === 'money' ? 'decimal' : undefined} required={field.required} maxLength={field.type === 'money' ? 18 : 200} value={form[field.key]} disabled={!canWrite || busy} placeholder={field.type === 'money' ? '0.00' : undefined} onBlur={field.type === 'money' ? normalizeAmount : undefined} onChange={e => setForm({ ...form, [field.key]: e.target.value })} />}
       </label>)}</div>
