@@ -1,0 +1,39 @@
+import { describe, expect, it } from 'vitest'
+import * as XLSX from 'xlsx'
+import { yuanToWan, wanToYuan, type BusinessRecord } from '../business-records'
+import { ledgerWorkbook, parseLedgerSheet } from '../ledger-excel'
+import { validateChoices } from '@/server/business-records'
+
+describe('ledger units and Excel', () => {
+  it('preserves every cent when converting existing yuan values', () => {
+    for (const value of ['0.00', '0.01', '10000.00', '123456.78', '999999999999.99']) {
+      expect(wanToYuan(yuanToWan(value))).toBe(value)
+    }
+    expect(yuanToWan('10000.00')).toBe('1')
+    expect(wanToYuan('1.234567')).toBe('12345.67')
+    expect(() => wanToYuan('-1')).toThrow()
+    expect(() => wanToYuan('0.0000001')).toThrow()
+  })
+  it('round trips safety amounts through actual Excel bytes in 万元', () => {
+    const row = { id: 1, orgName: '甲', manager: '乙', projectName: '项目', amount: '12345.67', inspectionDate: '2026-11-17', rectification: '整改中' } satisfies BusinessRecord
+    const bytes = XLSX.write(ledgerWorkbook('safety-inspections', [row]), { type: 'buffer', bookType: 'xlsx' })
+    expect(parseLedgerSheet('safety-inspections', XLSX.read(bytes))[0]).toMatchObject({ projectName: '项目', amount: '12345.67', rectification: '整改中', inspectionDate: '2026-11-17' })
+  })
+  it('round trips category, type and yuan amounts for legal cases', () => {
+    const row = { id: 1, orgName: null, manager: null, caseNo: '001', businessCategory: '应诉', caseType: '工伤纠纷', amount: '25.00' } satisfies BusinessRecord
+    expect(parseLedgerSheet('legal-cases', ledgerWorkbook('legal-cases', [row]))[0]).toMatchObject({ caseNo: '001', businessCategory: '应诉', caseType: '工伤纠纷', amount: '25.00' })
+  })
+  it('provides an empty template and rejects wrong-unit headers', () => {
+    const book = ledgerWorkbook('safety-inspections', [], true)
+    expect(book.SheetNames).toEqual(['台账', '填写说明'])
+    expect(() => parseLedgerSheet('safety-inspections', book)).toThrow('1 至 1000')
+    book.Sheets['台账'].D1.v = '合同金额（元）'
+    expect(() => parseLedgerSheet('safety-inspections', book)).toThrow('表头')
+  })
+  it('rejects new invalid options while preserving unchanged historical text', () => {
+    expect(() => validateChoices('safety-inspections', { rectification: '历史备注' })).toThrow()
+    expect(() => validateChoices('safety-inspections', { rectification: '历史备注' }, { rectification: '历史备注' })).not.toThrow()
+    expect(() => validateChoices('legal-cases', { businessCategory: '其他' })).toThrow()
+    expect(() => validateChoices('legal-cases', { businessCategory: '起诉', caseType: '合同纠纷' })).not.toThrow()
+  })
+})

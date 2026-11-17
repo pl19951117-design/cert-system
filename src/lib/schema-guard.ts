@@ -90,5 +90,7 @@ export async function ensureSoftDeleteSchema(): Promise<void> {
  "hearingDate" TEXT, "result" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
  FOREIGN KEY ("accountId") REFERENCES "Account"("id") ON DELETE CASCADE ON UPDATE CASCADE
 )`)
+  if (!(await hasColumn('LegalCase', 'businessCategory')))
+    await prisma.$executeRawUnsafe(`ALTER TABLE "LegalCase" ADD COLUMN "businessCategory" TEXT`)
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "LegalCase_accountId_idx" ON "LegalCase"("accountId")`)
 }

@@ -273,6 +273,7 @@ model LegalCase {
   orgName String?
   manager String?
   caseNo String
+  businessCategory String?
   caseType String?
   amount String?
   hearingDate String?
