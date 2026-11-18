@@ -131,8 +131,6 @@ export default async function DashboardPage() {
       const db = b.expiryDate ? differenceInDays(parseISO(b.expiryDate), new Date()) : -9999
       return da - db
     })
-  const nearest = alertCerts.find(c => certStatus(c.expiryDate) !== 'expired')
-  const nearestDays = nearest?.expiryDate ? differenceInDays(parseISO(nearest.expiryDate), new Date()) : null
   const segs = [
     { key: 'expired', label: '已过期', n: expired },
     { key: 'urgent', label: '30 天内', n: urgent },
@@ -172,6 +170,18 @@ export default async function DashboardPage() {
         </Link>
       </section>
 
+      <section className="duty-queue" id="queue" aria-labelledby="queue-title">
+        <header className="duty-heading"><div><h2 id="queue-title">证件关注清单</h2><p>已过期及未来 90 天内到期的证件</p></div><Link className="duty-action" href="/alerts">全部预警 <ArrowUpRight size={16} /></Link></header>
+        <div className="duty-status">{segs.map((segment,i)=><Link key={segment.key} href={`/alerts?status=${segment.key}`}><i className={`attention-dot attention-dot-${i}`} />{segment.label}{i ? '到期' : ''}<b>{segment.n}</b></Link>)}</div>
+        {alertCerts.length ? <div className="duty-scroll" tabIndex={0} aria-label="按到期日期排序的证件"><table className="duty-table">
+          <thead><tr>{['姓名 / 归属建制','证件类别 / 编号','到期日期','状态','剩余天数'].map(label=><th scope="col" key={label}>{label}</th>)}</tr></thead>
+          <tbody>{alertCerts.map(cert=>{
+            const days = differenceInDays(parseISO(cert.expiryDate!), new Date())
+            const status = certStatus(cert.expiryDate)
+            return <tr key={cert.id}><td><Link href={`/personnel/${cert.person.id}`}>{cert.person.name}</Link><small>{cert.person.orgName || '—'}{cert.person.manager && ' · ' + cert.person.manager}</small></td><td>{cert.certType || '—'}<small>{cert.certNo || '—'}</small></td><td>{cert.expiryDate}</td><td><span className={`badge ${status === 'expired' ? 'badge-red' : status === 'urgent' ? 'badge-orange' : 'badge-amber'}`}>{status === 'expired' ? '已过期' : status === 'urgent' ? '紧急' : '预警'}</span></td><td>{days < 0 ? '超期 ' : ''}<b>{Math.abs(days)}</b> 天</td></tr>
+          })}</tbody></table></div> : <div className="empty-overview"><ShieldCheck size={28}/><h3>当前没有需要关注的证件</h3></div>}
+      </section>
+
       <BusinessYearSummary stats={businessStats} currentYear={String(now)} />
 
       <div className="overview-primary-grid">
@@ -179,18 +189,7 @@ export default async function DashboardPage() {
           <MonthlyChangeChart data={monthly} embedded />
         </section>
         <section className="overview-attention card-elevated" aria-labelledby="attention-heading">
-          <div className="panel-heading"><div><h2 id="attention-heading">需要你关注</h2><p>及时处理，让重要事项不遗漏</p></div><span className="panel-symbol"><CircleAlert size={19} aria-hidden="true" /></span></div>
-          <div className="attention-list">
-            {segs.map((segment, i) => (
-              <Link key={segment.key} href={`/alerts?status=${segment.key}`} className="attention-row">
-                <span className={`attention-dot attention-dot-${i}`} aria-hidden="true" />
-                <span>{segment.label}{i > 0 ? '到期' : ''}</span><strong>{segment.n}<small>本</small></strong><ArrowUpRight size={15} aria-hidden="true" />
-              </Link>
-            ))}
-          </div>
-          <div className="attention-note">
-            {nearest ? <><span>最近到期</span><p><b>{nearest.person.name}</b> · {nearest.certType ?? '未分类'}<strong>还剩 {nearestDays} 天</strong></p></> : <p>{alertN === 0 ? '90 天内暂无到期证件' : '请及时处理已过期证件'}</p>}
-          </div>
+          <div className="panel-heading"><h2 id="attention-heading">考试人员准入</h2></div>
           <Link href={examStats.pendingAdmission ? '/exams?filter=待准入' : '/exams'} className="admission-row">
             <span className="admission-icon"><Users size={18} aria-hidden="true" /></span>
             <span><b>考试人员准入</b><small>{examStats.pendingAdmission ? `${examStats.pendingAdmission} 名通过人员待入库` : '暂无待准入人员'}</small></span><ArrowUpRight size={16} aria-hidden="true" />
@@ -229,19 +228,7 @@ export default async function DashboardPage() {
 
       <DashboardCharts socialData={socialData} ageData={ageData} />
 
-      <section className="card-elevated overview-table-panel">
-        <div className="panel-heading"><div><h2>证件关注清单</h2><p>已过期及未来 90 天内到期的证件</p></div><Link href="/alerts" className="panel-text-link">全部预警<ArrowUpRight size={14} aria-hidden="true" /></Link></div>
-        {alertCerts.length === 0 ? <div className="empty-overview"><ShieldCheck size={30} strokeWidth={1.5} aria-hidden="true" /><h3>当前没有需要关注的证件</h3><p>90 天内暂无证件到期</p></div> : (
-          <div className="overflow-x-auto"><AlignedTable columns={['归属建制','负责人','姓名','证件类别','证件编号','到期日期','状态','剩余天数']} className="w-full table-premium"><caption className="sr-only">按到期日期排序的证件关注清单</caption>
-            <thead><tr>{['归属建制','负责人','姓名','证件类别','证件编号','到期日期','状态','剩余天数'].map(label => <th key={label}>{label}</th>)}</tr></thead>
-            <tbody>{alertCerts.map(cert => {
-              const status = certStatus(cert.expiryDate)
-              const days = cert.expiryDate ? differenceInDays(parseISO(cert.expiryDate), new Date()) : null
-              return <tr key={cert.id}><td>{cert.person.orgName ?? '—'}</td><td>{cert.person.manager ?? '—'}</td><td><Link href={`/personnel/${cert.person.id}`} className="font-medium text-slate-900 hover:text-navy-700">{cert.person.name}</Link></td><td>{cert.certType ?? '—'}</td><td className="text-xs text-slate-500">{cert.certNo ?? '—'}</td><td>{cert.expiryDate ?? '—'}</td><td><span className={`badge ${status === 'expired' ? 'badge-red' : status === 'urgent' ? 'badge-orange' : 'badge-amber'}`}>{status === 'expired' ? '已过期' : status === 'urgent' ? '紧急' : '预警'}</span></td><td>{days === null ? '—' : days < 0 ? `已超期 ${Math.abs(days)} 天` : `还剩 ${days} 天`}</td></tr>
-            })}</tbody>
-          </AlignedTable></div>
-        )}
-      </section>
+
     </div>
   )
 }
