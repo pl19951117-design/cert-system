@@ -11,8 +11,6 @@ app.whenReady().then(async () => {
   const ses = win.webContents.session
   const login = await ses.fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'admin',password:'admin123'})})
   if (!login.ok) throw Error('Demo login failed '+login.status)
-  const cookie = login.headers.get('set-cookie')?.match(/cert-session=([^;]+)/)
-  if(cookie) await ses.cookies.set({url:base,name:'cert-session',value:cookie[1]})
   await win.loadURL(base+'/login')
   await win.webContents.executeJavaScript("sessionStorage.setItem('cert-reminder-shown','1')")
   await win.loadURL(base)
