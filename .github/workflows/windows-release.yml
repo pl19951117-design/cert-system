@@ -3,7 +3,7 @@ name: Windows installer release
 on:
   push:
     branches: [main]
-    paths: [package.json, .github/workflows/windows-release.yml, scripts/capture-overview.cjs, scripts/check-overview.cjs]
+    paths: [package.json]
   workflow_dispatch:
 
 permissions:

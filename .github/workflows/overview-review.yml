@@ -1,0 +1,30 @@
+name: Verify overview screenshots
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/overview-review.yml]
+permissions:
+  contents: write
+jobs:
+  screenshots:
+    runs-on: windows-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $env:OVERVIEW_OUTPUT = Join-Path $env:RUNNER_TEMP overview-shots
+          node scripts/check-overview.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Screenshot verification failed' }
+          $shots = @(Get-ChildItem $env:OVERVIEW_OUTPUT -Filter *.png | ForEach-Object FullName)
+          gh release upload v0.7.7 @shots --clobber
