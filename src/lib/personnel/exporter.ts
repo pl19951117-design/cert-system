@@ -55,8 +55,6 @@ export const IMPORT_TEMPLATE_HEADERS = [
 export function downloadImportTemplate(): void {
   const ws = XLSX.utils.aoa_to_sheet([
     IMPORT_TEMPLATE_HEADERS,
-    ['一连', '张队长', '王小明', '110101199001011234', '1990', '大专', '中级工程师', '已参保', '1',
-     '安全员证', 'AQ20240001', '2022-01-01', '2025-01-01', '省建设厅'],
   ])
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, '导入模板')
@@ -66,8 +64,6 @@ export function downloadImportTemplate(): void {
 export function downloadSocialTemplate(): void {
   const ws = XLSX.utils.aoa_to_sheet([
     ['身份证号', '社保情况'],
-    ['110101199001011234', '已参保'],
-    ['110101199203054321', '未参保'],
   ])
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, '社保更新模板')

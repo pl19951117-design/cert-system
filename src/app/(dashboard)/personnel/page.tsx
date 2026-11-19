@@ -424,12 +424,12 @@ export default function PersonnelPage() {
         </div>
         <div className="self-center flex flex-wrap items-center gap-2">
           {importMsg && <span role="status" className="text-xs text-slate-500 bg-slate-100 rounded-md px-2.5 py-1">{importMsg}</span>}
-          <ActionMenu label="数据工具">
-            <button onClick={downloadImportTemplate}><FileDown size={16} aria-hidden="true" />下载导入模板</button>
-            <button onClick={() => fileRef.current?.click()}><FileUp size={16} aria-hidden="true" />Excel 导入</button>
-            <button onClick={exportExcel} disabled={loading || loadError || flatRows.length === 0}><Download size={16} aria-hidden="true" />导出 Excel</button>
+          <ActionMenu label="数据工具" initiallyOpen={typeof window !== 'undefined' && window.location.hash === '#personnel-import'}>
+            <button onClick={downloadImportTemplate}><FileDown size={16} aria-hidden="true" />下载模板</button>
+            <button onClick={() => fileRef.current?.click()}><FileUp size={16} aria-hidden="true" />导入数据</button>
+            <button onClick={exportExcel} disabled={loading || loadError || flatRows.length === 0}><Download size={16} aria-hidden="true" />导出数据</button>
           </ActionMenu>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
+          <input ref={fileRef} id="personnel-import" type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
           <button onClick={() => setShowBulk(true)} className="btn-secondary !py-2 !px-3 !text-xs">
             批量更新社保
           </button>
@@ -788,7 +788,7 @@ export default function PersonnelPage() {
       )}
 
       {showBulk && (
-        <BulkSocialModal
+        <BulkSocialModal people={people}
           onClose={() => setShowBulk(false)}
           onSynced={load}
         />

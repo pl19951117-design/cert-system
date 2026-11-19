@@ -3,6 +3,7 @@
 // 继续教育：按年度列出有效期到期的证件，登记是否已参加继续教育，可导出 Excel。
 // 排列与人员库一致：按建制分组（可折叠），组内沿用人员库「建制 → 负责人 → 姓名」的顺序。
 
+import { LedgerExcel } from '@/components/ledger-excel'
 import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -219,10 +220,8 @@ export default function EducationPage() {
               <button key={y} type="button" aria-pressed={year === y} onClick={() => changeYear(y)}>{y} 年度</button>
             ))}
           </div>
-          <button onClick={() => exportExcel(rows, stats, year, filtered)} disabled={loading || loadError || rows.length === 0}
-            className="btn-secondary !py-2 !px-3 !text-xs disabled:opacity-50">
-            <Download size={16} strokeWidth={1.7} aria-hidden="true" />导出 Excel{filtered ? '（筛选结果）' : ''}
-          </button>
+          <LedgerExcel kind="education" rows={[]} canWrite={canEdit} year={year} exportData={() => exportExcel(rows, stats, year, filtered)} onChanged={() => setReloadKey(k => k + 1)} />
+
         </div>
       </div>
 

@@ -2,12 +2,14 @@
 
 import { AlignedTable } from '@/components/aligned-table'
 import { useMemo, useRef, useState } from 'react'
+import * as XLSX from 'xlsx'
 import { Modal } from '@/components/Modal'
 import { Spinner } from '@/components/Spinner'
 import { personnelApi, type SyncSocialResult, type SyncSocialChange } from '@/lib/personnel/api'
 import { downloadSocialTemplate, parseExcelRows } from '@/lib/personnel/exporter'
 
 export type BulkSocialModalProps = {
+  people: {idCard: string | null; socialSecurity: string | null}[]
   onClose: () => void
   onSynced: () => void
 }
@@ -32,7 +34,7 @@ function BeforeAfter({ before, after, toUnpaid }: { before: string; after: strin
   )
 }
 
-export function BulkSocialModal({ onClose, onSynced }: BulkSocialModalProps) {
+export function BulkSocialModal({ people, onClose, onSynced }: BulkSocialModalProps) {
   const [busy, setBusy]     = useState(false)
   const [err, setErr]       = useState('')
   const [result, setResult] = useState<SyncSocialResult | null>(null)
@@ -91,8 +93,14 @@ export function BulkSocialModal({ onClose, onSynced }: BulkSocialModalProps) {
 
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <button onClick={downloadSocialTemplate} className="btn-secondary flex-1 !text-xs">
-            下载社保模板
+            下载模板
           </button>
+          <button className="btn-secondary flex-1 !text-xs" onClick={() => {
+            const book = XLSX.utils.book_new()
+            const sheet = XLSX.utils.aoa_to_sheet([['身份证号','社保情况'], ...people.filter(p => p.idCard).map(p => [p.idCard,p.socialSecurity || '未参保'])])
+            XLSX.utils.book_append_sheet(book,sheet,'社保清单')
+            XLSX.writeFile(book,'社保清单.xlsx')
+          }}>导出数据</button>
           <button
             onClick={() => fileRef.current?.click()}
             disabled={busy}
@@ -100,7 +108,7 @@ export function BulkSocialModal({ onClose, onSynced }: BulkSocialModalProps) {
             className="btn-primary flex-1 !text-xs disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {busy && <Spinner size={12} label="处理中" />}
-            {busy ? '处理中…' : result ? '重新选择文件' : '选择 Excel 文件'}
+            {busy ? '处理中…' : result ? '重新选择文件' : '导入数据'}
           </button>
           <input
             ref={fileRef}

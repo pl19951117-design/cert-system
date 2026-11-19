@@ -1,5 +1,6 @@
 'use client'
 
+import { LedgerExcel } from '@/components/ledger-excel'
 import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -117,6 +118,8 @@ function FormModal({ title, f, setF, onSubmit, onClose, saving, people }: {
 export default function ExamsPage() {
   const [exams, setExams] = useState<Exam[]>([])
   const [loading, setLoading] = useState(true)
+  const [canWrite, setCanWrite] = useState(false)
+  useEffect(() => { getJSON<{role:string}>('/api/auth/me').then(me => setCanWrite(me.role !== 'viewer')).catch(() => {}) }, [])
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<Record<string, string>>({ isPassed: '待考' })
   const [saving, setSaving] = useState(false)
@@ -213,6 +216,7 @@ export default function ExamsPage() {
             共 {exams.length} 条记录{pendingAdmitCount > 0 && <> · <span className="text-navy-700 font-semibold">{pendingAdmitCount} 人通过待准入</span></>}
           </p>
         </div>
+        <LedgerExcel kind="exams" rows={filtered} canWrite={canWrite} onChanged={() => void load()} />
         <button onClick={() => { setShowAdd(true); setForm({ isPassed: '待考' }) }}
           className="btn-primary self-center !py-2 !px-4 !text-sm">
           + 添加报名

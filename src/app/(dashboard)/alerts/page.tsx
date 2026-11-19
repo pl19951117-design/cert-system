@@ -1,5 +1,8 @@
 'use client'
 
+import { ActionMenu } from '@/components/action-menu'
+import { downloadImportTemplate } from '@/lib/personnel/exporter'
+import { useRouter } from 'next/navigation'
 import { AlignedTable } from '@/components/aligned-table'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -31,6 +34,7 @@ const badge: Record<string, string> = {
 const label: Record<string, string> = { expired: '已过期', urgent: '紧急', warning: '预警', ok: '正常' }
 
 export default function AlertsPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [certs, setCerts] = useState<Cert[]>([])
   const [loading, setLoading] = useState(true)
@@ -100,13 +104,13 @@ export default function AlertsPage() {
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">到期预警</h1>
           <p className="text-xs text-slate-400 mt-0.5">已过期 {counts.expired} · 紧急（30天内）{counts.urgent} · 预警（90天内）{counts.warning}</p>
         </div>
-        <button
+        <ActionMenu label="数据工具"><button onClick={downloadImportTemplate}>下载模板</button><button onClick={() => router.push('/personnel#personnel-import')}>导入数据（人员证件）</button><button
           onClick={exportExcel}
           disabled={filtered.length === 0}
           className="self-center btn-secondary !py-2 !px-3 !text-xs disabled:opacity-50"
         >
-          导出 Excel
-        </button>
+          导出数据
+        </button></ActionMenu>
       </div>
 
       {/* 统计卡片 */}

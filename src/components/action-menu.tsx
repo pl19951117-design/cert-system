@@ -4,8 +4,9 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 
 /** A labelled action group; native buttons retain their normal keyboard behavior. */
-export function ActionMenu({ label, children }: { label: string; children: React.ReactNode }) {
+export function ActionMenu({ label, children, initiallyOpen = false }: { initiallyOpen?: boolean; label: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
+  useEffect(() => { if (initiallyOpen) setOpen(true) }, [initiallyOpen])
   const container = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const id = useId()

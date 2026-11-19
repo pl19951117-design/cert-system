@@ -40,3 +40,27 @@ describe('ledger units and Excel', () => {
     expect(() => validateChoices('legal-cases', { businessCategory: '起诉', caseType: '合同纠纷' })).not.toThrow()
   })
 })
+
+import JSZip from 'jszip'
+import { templateBytes } from '../ledger-template'
+
+it.each([
+  ['safety-inspections', '未整改,整改中,已整改'],
+  ['legal-cases', '起诉,应诉'],
+  ['exams', '待考,已通过,未通过,已取证'],
+  ['education', '已参加,未参加'],
+] as const)('writes a blank %s workbook with selectable values', async (kind, options) => {
+  const bytes = await templateBytes(kind)
+  const book = XLSX.read(bytes)
+  expect(book.SheetNames).toEqual(['台账', '填写说明'])
+  expect(XLSX.utils.sheet_to_json(book.Sheets['台账'])).toHaveLength(0)
+  const zip = await JSZip.loadAsync(bytes)
+  const xml = await zip.file('xl/worksheets/sheet1.xml')!.async('string')
+  expect(xml).toContain('<formula1>"' + options + '"</formula1>')
+})
+
+it('preserves exam identifiers and statuses through an Excel export and import', () => {
+  const row = { name: '王明', idCard: '012345678901234567', certNo: '0003', isPassed: '已取证', regDate: '2026-11-19' }
+  const bytes = XLSX.write(ledgerWorkbook('exams', [row]), { type: 'buffer', bookType: 'xlsx' })
+  expect(parseLedgerSheet('exams', XLSX.read(bytes))[0]).toMatchObject(row)
+})
