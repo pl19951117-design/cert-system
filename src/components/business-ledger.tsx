@@ -11,7 +11,7 @@ import { TableRowSkeleton } from '@/components/Skeleton'
 import { AlignedTable } from '@/components/aligned-table'
 import { toast } from '@/components/toast'
 import { apiFetch, getJSON } from '@/lib/api'
-import { RECTIFICATIONS, BUSINESS_CATEGORIES, CASE_TYPES, yuanToWan, wanToYuan, type BusinessKind, type BusinessRecord } from '@/lib/business-records'
+import { REPORT_GROUPS, CASE_RESULTS, type ReportCategory, BUSINESS_CATEGORIES, CASE_TYPES, yuanToWan, wanToYuan, type BusinessKind, type BusinessRecord } from '@/lib/business-records'
 
 type Field = { key: string; label: string; type?: 'date' | 'money' | 'textarea'; required?: boolean; options?: readonly string[] }
 const COMMON: Field[] = [{ key: 'orgName', label: '归属建制' }, { key: 'manager', label: '负责人' }]
@@ -20,17 +20,16 @@ const CONFIG = {
     title: '安全检查', singular: '检查记录', name: 'projectName', date: 'inspectionDate',
     description: '集中管理项目检查、检查报告与整改记录。',
     fields: [...COMMON, { key: 'projectName', label: '项目名称', required: true },
-      { key: 'amount', label: '合同金额', type: 'money' }, { key: 'inspectionDate', label: '检查时间', type: 'date' },
-      { key: 'rectification', label: '整改情况', options: RECTIFICATIONS }] as Field[],
-    columns: ['序号', '归属建制', '负责人', '项目名称', '合同金额', '检查时间', '检查报告', '整改情况'],
+      { key: 'amount', label: '合同金额', type: 'money' }, { key: 'inspectionDate', label: '检查时间', type: 'date' }] as Field[],
+    columns: ['序号', '归属建制', '负责人', '项目名称', '合同金额', '检查时间', ...REPORT_GROUPS.map(group => group.label)],
   },
   'legal-cases': {
     title: '法务案件', singular: '案件', name: 'caseNo', date: 'hearingDate',
     description: '统一记录案件信息、涉案金额、开庭时间与案件结果。',
-    fields: [...COMMON, { key: 'caseNo', label: '案件编号', required: true }, { key: 'businessCategory', label: '业务类别', options: BUSINESS_CATEGORIES }, { key: 'caseType', label: '案件类型', options: CASE_TYPES },
+    fields: [...COMMON, { key: 'party', label: '当事人' }, { key: 'caseNo', label: '案件编号', required: true }, { key: 'businessCategory', label: '业务类别', options: BUSINESS_CATEGORIES }, { key: 'caseType', label: '案件类型', options: CASE_TYPES },
       { key: 'amount', label: '涉案金额', type: 'money' }, { key: 'hearingDate', label: '开庭时间', type: 'date' },
-      { key: 'result', label: '案件结果', type: 'textarea' }] as Field[],
-    columns: ['序号', '归属建制', '负责人', '案件编号', '业务类别', '案件类型', '涉案金额', '开庭时间', '案件结果'],
+      { key: 'result', label: '案件结果', options: CASE_RESULTS }] as Field[],
+    columns: ['序号', '归属建制', '负责人', '当事人', '案件编号', '业务类别', '案件类型', '涉案金额', '开庭时间', '案件结果'],
   },
 }
 const PAGE_SIZE = 30
@@ -65,7 +64,7 @@ export function BusinessLedger({ kind, canWrite }: { kind: BusinessKind; canWrit
   }, [kind])
   const filtered = useMemo(() => rows.filter(row => {
     const date = kind === 'safety-inspections' ? row.inspectionDate : row.hearingDate
-    const haystack = [row.orgName, row.manager, row.projectName, row.caseNo, row.businessCategory, row.caseType, row.rectification, row.result,
+    const haystack = [row.orgName, row.manager, row.projectName, row.caseNo, row.businessCategory, row.caseType, row.party, row.result,
       ...(row.reports || []).map(report => report.fileName)].filter(Boolean).join(' ').toLowerCase()
     return matchesBusinessYear(date, year) && haystack.includes(search.trim().toLowerCase()) && (!org || row.orgName === org) && (!manager || row.manager === manager)
       && (!from || !!date && date >= from) && (!to || !!date && date <= to)
@@ -91,7 +90,7 @@ export function BusinessLedger({ kind, canWrite }: { kind: BusinessKind; canWrit
     <section className="card-elevated overflow-hidden" aria-label={`${config.title}台账`}>
       <div className="record-filters">
         <label className="record-filter record-search" htmlFor={`${kind}-search`}>关键词
-          <span className="relative"><Search size={15} className="absolute left-3 top-3 text-slate-400" aria-hidden /><input id={`${kind}-search`} className="input-refined !pl-9" value={search} placeholder={kind === 'safety-inspections' ? '搜索项目、报告或整改情况' : '搜索案号、类型或案件结果'} onChange={e => { setSearch(e.target.value); setPage(1) }} /></span>
+          <span className="relative"><Search size={15} className="absolute left-3 top-3 text-slate-400" aria-hidden /><input id={`${kind}-search`} className="input-refined !pl-9" value={search} placeholder={kind === 'safety-inspections' ? '搜索项目或附件名称' : '搜索案号、当事人或案件结果'} onChange={e => { setSearch(e.target.value); setPage(1) }} /></span>
         </label>
         <label className="record-filter" htmlFor={`${kind}-org`}>归属建制<select id={`${kind}-org`} className="input-refined" value={org} onChange={e => { setOrg(e.target.value); setPage(1) }}><option value="">全部建制</option>{orgs.map(v => <option key={v}>{v}</option>)}</select></label>
         <label className="record-filter" htmlFor={`${kind}-manager`}>负责人<select id={`${kind}-manager`} className="input-refined" value={manager} onChange={e => { setManager(e.target.value); setPage(1) }}><option value="">全部负责人</option>{managers.map(v => <option key={v}>{v}</option>)}</select></label>
@@ -107,13 +106,15 @@ export function BusinessLedger({ kind, canWrite }: { kind: BusinessKind; canWrit
           <thead><tr>{config.columns.map((label, i) => <th key={label} scope="col" className={i === 0 || label.endsWith('时间') ? 'text-center' : label.endsWith('金额') ? 'text-right' : 'text-left'}>{label}</th>)}</tr></thead>
           <tbody>{loading ? <TableRowSkeleton cols={config.columns.length} count={5} /> : visible.length ? visible.map((row, index) => <tr key={row.id}>
             <td className="text-center tabular-nums text-slate-400">{(current - 1) * PAGE_SIZE + index + 1}</td>
-            <td>{row.orgName || '—'}</td><td>{row.manager || '—'}</td><td>{nameCell(row)}</td>
+            <td>{row.orgName || '—'}</td><td>{row.manager || '—'}</td>{kind === 'legal-cases' && <td>{row.party || '—'}</td>}<td>{nameCell(row)}</td>
             {kind === 'legal-cases' && <td>{row.businessCategory || '—'}</td>}
             {kind === 'legal-cases' && <td>{row.caseType || '—'}</td>}
             <td className="text-right tabular-nums whitespace-nowrap">{yuanToWan(row.amount) || '—'}</td>
             <td className="text-center tabular-nums whitespace-nowrap">{value(row, config.date) || '—'}</td>
-            {kind === 'safety-inspections' && <td>{row.reports?.length ? <button className="record-name inline-flex items-center gap-1.5" onClick={() => setTarget(row)}><FileText size={14} aria-hidden />{row.reports.length} 份报告</button> : <span className="text-slate-400">未上传</span>}</td>}
-            <td className="record-long-text">{(kind === 'safety-inspections' ? row.rectification : row.result) || '—'}</td>
+            {kind === 'safety-inspections' ? REPORT_GROUPS.map(({ category, label }) => {
+              const count = row.reports?.filter(report => report.category === category).length
+              return <td key={category}>{count ? <button className="record-name inline-flex items-center gap-1.5" aria-label={`查看 ${count} 份${label}`} onClick={() => setTarget(row)}><FileText size={14} aria-hidden />{count} 份</button> : '未上传'}</td>
+            }) : <td className="record-long-text">{row.result || '—'}</td>}
           </tr>) : <tr><td colSpan={config.columns.length} className="!py-14 text-center text-slate-400">{rows.length ? '没有符合条件的记录，请调整筛选。' : `暂无${config.singular}${canWrite ? '，点击右上角新增。' : '。'}`}</td></tr>}</tbody>
         </AlignedTable>
       </div>}
@@ -131,7 +132,7 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [reportDelete, setReportDelete] = useState<number | null>(null)
-  const [files, setFiles] = useState<File[]>([])
+  const [files, setFiles] = useState<{ category: ReportCategory; file: File }[]>([])
   const [fileKey, setFileKey] = useState(0)
   const [preview, setPreview] = useState<{ source: string; fileName: string } | null>(null)
 
@@ -147,12 +148,12 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
 
   async function upload(id: number) {
     // Remove each successful upload from the pending queue so a retry never duplicates it.
-    for (const file of files) {
-      const data = new FormData(); data.set('file', file)
+    for (const item of files) {
+      const data = new FormData(); data.set('file', item.file); data.set('category', item.category)
       const response = await apiFetch(`/api/${kind}/${id}/reports`, { method: 'POST', body: data })
       const report = await response.json()
       setRecord(previous => previous ? { ...previous, reports: [...(previous.reports || []), report] } : previous)
-      setFiles(previous => previous.filter(pending => pending !== file))
+      setFiles(previous => previous.filter(pending => pending !== item))
     }
     setFileKey(previous => previous + 1)
   }
@@ -166,7 +167,7 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
       const saved = await response.json() as BusinessRecord
       setRecord(saved)
       try { await upload(saved.id) } catch (e) {
-        setError(`记录已保存，报告上传未完成：${(e as Error).message}。可再次保存以重试。`)
+        setError(`记录已保存，附件上传未完成：${(e as Error).message}。可再次保存以重试。`)
         onChanged(); return
       }
       onChanged(); toast('保存成功', 'success'); onClose()
@@ -201,21 +202,24 @@ function RecordModal({ kind, initial, canWrite, onClose, onChanged }: { kind: Bu
         {field.options ? <select id={`record-${field.key}`} className="input-refined" value={form[field.key]} disabled={!canWrite || busy} onChange={e => setForm({ ...form, [field.key]: e.target.value })}><option value="">请选择</option>{form[field.key] && !field.options.includes(form[field.key]) && <option value={form[field.key]}>{form[field.key]}（历史值）</option>}{field.options.map(option => <option key={option}>{option}</option>)}</select> : field.type === 'textarea' ? <textarea id={`record-${field.key}`} className="input-refined min-h-24 resize-y" value={form[field.key]} disabled={!canWrite || busy} maxLength={10000} onChange={e => setForm({ ...form, [field.key]: e.target.value })} />
           : <input id={`record-${field.key}`} className={`input-refined ${field.type === 'money' ? 'text-right tabular-nums' : ''}`} type={field.type === 'date' ? 'date' : 'text'} inputMode={field.type === 'money' ? 'decimal' : undefined} required={field.required} maxLength={field.type === 'money' ? 18 : 200} value={form[field.key]} disabled={!canWrite || busy} placeholder={field.type === 'money' ? '0.00' : undefined} onBlur={field.type === 'money' ? normalizeAmount : undefined} onChange={e => setForm({ ...form, [field.key]: e.target.value })} />}
       </label>)}</div>
-      {kind === 'safety-inspections' && <section className="record-reports" aria-labelledby="report-heading">
-        <h3 id="report-heading" className="text-sm font-semibold mb-3">检查报告</h3>
-        {record?.reports?.length ? <ul className="space-y-3">{record.reports.map(report => <li key={report.id} className="record-report-row">
+      {kind === 'safety-inspections' && REPORT_GROUPS.map(({ category, label }) => {
+        const reports = record?.reports?.filter(report => report.category === category) || []
+        const pending = files.filter(item => item.category === category)
+        return <section key={category} className="record-reports" aria-labelledby={`heading-${category}`}>
+        <h3 id={`heading-${category}`} className="text-sm font-semibold mb-3">{label}</h3>
+        {record && reports.length ? <ul className="space-y-3">{reports.map(report => <li key={report.id} className="record-report-row">
           <div className="min-w-0"><p className="text-sm break-all">{report.fileName}</p><p className="text-xs text-slate-500">{(report.fileSize / 1024).toFixed(1)} KB</p></div>
           <div className="flex items-center gap-3 shrink-0"><button type="button" className="record-name" onClick={() => setPreview({ source: `/api/${kind}/${record.id}/reports?report=${report.id}&inline=1`, fileName: report.fileName })}>查看</button><a className="record-name" href={`/api/${kind}/${record.id}/reports?report=${report.id}`} aria-label={`下载 ${report.fileName}`}><Download size={16} aria-hidden /></a>{canWrite && <button type="button" className="text-red-500" disabled={busy} onClick={() => setReportDelete(report.id)} aria-label={`删除 ${report.fileName}`}><Trash2 size={16} aria-hidden /></button>}</div>
-          {reportDelete === report.id && <div className="record-inline-confirm"><span>删除此报告？</span><button type="button" disabled={busy} className="text-red-600" onClick={() => void removeReport(report.id)}>确认删除</button><button type="button" disabled={busy} onClick={() => setReportDelete(null)}>取消</button></div>}
-        </li>)}</ul> : <p className="text-sm text-slate-400">尚未上传报告</p>}
-        {canWrite && <div className="mt-4"><label htmlFor="record-files" className="block text-xs text-slate-500 mb-2">添加报告 · 支持 PDF、图片、Word、Excel、TXT，每份不超过 20 MB</label><input key={fileKey} id="record-files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt" disabled={busy} className="input-refined text-xs" onChange={e => {
+          {reportDelete === report.id && <div className="record-inline-confirm"><span>删除此附件？</span><button type="button" disabled={busy} className="text-red-600" onClick={() => void removeReport(report.id)}>确认删除</button><button type="button" disabled={busy} onClick={() => setReportDelete(null)}>取消</button></div>}
+        </li>)}</ul> : <p className="text-sm text-slate-400">尚未上传{label}</p>}
+        {canWrite && <div className="mt-4"><label htmlFor={`files-${category}`} className="block text-xs text-slate-500 mb-2">添加{label} · 支持 PDF、图片、Word、Excel、TXT，每份不超过 20 MB</label><input key={fileKey} id={`files-${category}`} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt" disabled={busy} className="input-refined text-xs" onChange={e => {
           const selected = Array.from(e.target.files || [])
-          if (selected.some(file => file.size > 20 * 1024 * 1024 || !file.size)) { setError('请选择非空文件，每份不能超过 20 MB'); e.target.value = ''; setFiles([]); return }
-          setFiles(selected); setError('')
-        }} />{files.length > 0 && <p className="text-xs text-slate-500 mt-2">{files.length} 份报告将在保存时上传</p>}</div>}
-      </section>}
+          if (selected.some(file => file.size > 20 * 1024 * 1024 || !file.size)) { setError('请选择非空文件，每份不能超过 20 MB'); e.target.value = ''; setFiles(items => items.filter(item => item.category !== category)); return }
+          setFiles(items => [...items.filter(item => item.category !== category), ...selected.map(file => ({ category, file }))]); setError('')
+        }} />{pending.length > 0 && <p className="text-xs text-slate-500 mt-2">{pending.length} 份{label}将在保存时上传</p>}</div>}
+      </section>})}
       {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
-      {confirmDelete && <div className="record-inline-confirm" role="alert"><span>确认删除“{form[config.name]}”？{kind === 'safety-inspections' ? '关联报告也会删除。' : ''}此操作无法撤销。</span><button type="button" className="btn-secondary text-red-600" disabled={busy} onClick={() => void remove()}>确认删除</button><button type="button" className="btn-ghost" disabled={busy} onClick={() => setConfirmDelete(false)}>取消</button></div>}
+      {confirmDelete && <div className="record-inline-confirm" role="alert"><span>确认删除“{form[config.name]}”？{kind === 'safety-inspections' ? '关联附件也会删除。' : ''}此操作无法撤销。</span><button type="button" className="btn-secondary text-red-600" disabled={busy} onClick={() => void remove()}>确认删除</button><button type="button" className="btn-ghost" disabled={busy} onClick={() => setConfirmDelete(false)}>取消</button></div>}
       <div className="record-form-actions">
         <div>{canWrite && record && !confirmDelete && <button type="button" className="btn-ghost text-red-600" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={15} aria-hidden />删除{config.singular}</button>}</div>
         <div className="flex gap-2"><button type="button" className="btn-secondary" disabled={busy} onClick={onClose}>{canWrite ? '取消' : '关闭'}</button>{canWrite && <button type="submit" className="btn-primary" disabled={busy || confirmDelete}>{busy && <Spinner size={14} />}{busy ? '正在处理…' : '保存'}</button>}</div>

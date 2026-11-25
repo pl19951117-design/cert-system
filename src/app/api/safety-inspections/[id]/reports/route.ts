@@ -5,6 +5,8 @@ import { parseId } from '@/server/validation'
 import { created, httpErrors } from '@/server/http'
 import { reportSelect } from '@/server/business-records'
 
+import { REPORT_GROUPS } from '@/lib/business-records'
+
 const TYPES: Record<string, string> = {
   pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
   doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -16,20 +18,23 @@ export const POST = route<{ id: string }>({ roles: WRITER_ROLES }, async ({ req,
   const inspectionId = parseId(params.id)
   const record = await prisma.safetyInspection.findFirst({ where: { id: inspectionId, accountId }, select: { id: true } })
   if (!record) throw httpErrors.notFound('检查记录不存在')
-  if (Number(req.headers.get('content-length') || 0) > 21 * 1024 * 1024) throw httpErrors.badRequest('单份报告不能超过 20 MB')
+  if (Number(req.headers.get('content-length') || 0) > 21 * 1024 * 1024) throw httpErrors.badRequest('单份附件不能超过 20 MB')
   let form: FormData
   try { form = await req.formData() }
-  catch { throw httpErrors.badRequest('报告文件无法读取，请检查文件大小后重试') }
+  catch { throw httpErrors.badRequest('附件文件无法读取，请检查文件大小后重试') }
+  const category = form.get('category') ?? 'report'
+  if (typeof category !== 'string' || !REPORT_GROUPS.some(group => group.category === category))
+    throw httpErrors.badRequest('附件类别无效')
   const file = form.get('file')
-  if (!(file instanceof File) || !file.size) throw httpErrors.badRequest('请选择非空报告文件')
-  if (file.size > 20 * 1024 * 1024) throw httpErrors.badRequest('单份报告不能超过 20 MB')
+  if (!(file instanceof File) || !file.size) throw httpErrors.badRequest('请选择非空附件文件')
+  if (file.size > 20 * 1024 * 1024) throw httpErrors.badRequest('单份附件不能超过 20 MB')
   const fileName = file.name.replace(/[\x00-\x1f/\\]/g, '_').slice(0, 200)
   const extension = fileName.split('.').pop()?.toLowerCase() || ''
   const mimeType = TYPES[extension]
   if (!mimeType) throw httpErrors.badRequest('支持 PDF、图片、Word、Excel 和 TXT 文件')
   // Reports live in SQLite: both database backups and full backups preserve them atomically.
   const report = await prisma.safetyReport.create({ data: {
-    inspectionId, fileName, mimeType, fileSize: file.size, fileData: Buffer.from(await file.arrayBuffer()),
+    inspectionId, category, fileName, mimeType, fileSize: file.size, fileData: Buffer.from(await file.arrayBuffer()),
   }, select: reportSelect })
   return created(report)
 })

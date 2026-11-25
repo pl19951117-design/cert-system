@@ -1,6 +1,6 @@
 {
   "name": "cert-system",
-  "version": "0.7.8",
+  "version": "0.7.9",
   "private": true,
   "description": "证件管理系统 — 人员证件与考试报名管理桌面应用",
   "author": "证件管理系统",

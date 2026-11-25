@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { RECTIFICATIONS, BUSINESS_CATEGORIES, CASE_TYPES, normalizeMoney } from '@/lib/business-records'
+import { CASE_RESULTS, BUSINESS_CATEGORIES, CASE_TYPES, normalizeMoney } from '@/lib/business-records'
 import { isoDateNullable, parseId, parseJsonBody, trimmedNullable } from './validation'
 import { route, WRITER_ROLES } from './handler'
 import { created, httpErrors, noContent, ok } from './http'
@@ -18,20 +18,21 @@ const date = isoDateNullable.refine(value => !value || (
 const base = { orgName: trimmedNullable, manager: trimmedNullable, amount }
 export const safetySchema = z.object({ ...base,
   projectName: z.string().trim().min(1, '请填写项目名称').max(200),
-  inspectionDate: date, rectification: trimmedNullable,
+  inspectionDate: date,
 })
 export const legalSchema = z.object({ ...base,
   caseNo: z.string().trim().min(1, '请填写案件编号').max(200),
-  businessCategory: trimmedNullable, caseType: trimmedNullable, hearingDate: date, result: trimmedNullable,
+  party: trimmedNullable, businessCategory: trimmedNullable, caseType: trimmedNullable, hearingDate: date, result: trimmedNullable,
 })
 export function validateChoices(kind: BusinessKind, data: Record<string, unknown>, previous: Record<string, unknown> = {}) {
-  const choices = kind === 'safety-inspections' ? { rectification: RECTIFICATIONS } : { businessCategory: BUSINESS_CATEGORIES, caseType: CASE_TYPES }
+  if (kind === 'safety-inspections') return
+  const choices = { result: CASE_RESULTS, businessCategory: BUSINESS_CATEGORIES, caseType: CASE_TYPES }
   for (const [key, allowed] of Object.entries(choices)) {
     const value = data[key]
     if (value && value !== previous[key] && !(allowed as readonly string[]).includes(String(value))) throw httpErrors.badRequest(key + '请选择有效选项')
   }
 }
-export const reportSelect = { id: true, fileName: true, fileSize: true } as const
+export const reportSelect = { id: true, fileName: true, fileSize: true, category: true } as const
 
 // Fixed route factories keep authentication and account isolation identical for both ledgers.
 export function recordRoutes(kind: BusinessKind) {

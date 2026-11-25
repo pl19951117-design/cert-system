@@ -258,6 +258,7 @@ model SafetyInspection {
 model SafetyReport {
   id Int @id @default(autoincrement())
   inspectionId Int
+  category String @default("report")
   fileName String
   mimeType String
   fileSize Int
@@ -273,6 +274,7 @@ model LegalCase {
   orgName String?
   manager String?
   caseNo String
+  party String?
   businessCategory String?
   caseType String?
   amount String?

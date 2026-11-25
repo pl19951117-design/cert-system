@@ -14,7 +14,13 @@ export function formatMoney(value: string | null | undefined): string {
 }
 
 export type BusinessKind = 'safety-inspections' | 'legal-cases'
-export const RECTIFICATIONS = ['未整改', '整改中', '已整改'] as const
+export const CASE_RESULTS = ['已结案', '未结案'] as const
+export const REPORT_GROUPS = [
+  { category: 'report', label: '检查报告' },
+  { category: 'notice', label: '整改通知单' },
+  { category: 'reply', label: '整改回复单' },
+] as const
+export type ReportCategory = typeof REPORT_GROUPS[number]['category']
 export const BUSINESS_CATEGORIES = ['起诉', '应诉'] as const
 export const CASE_TYPES = ['合同纠纷', '分包合同纠纷', '工资纠纷', '工伤纠纷', '其他'] as const
 
@@ -33,10 +39,10 @@ export function wanToYuan(value: string): string | null {
   const cents = (BigInt(whole) * BigInt(1000000) + BigInt(decimals.padEnd(6, '0'))).toString().padStart(3, '0')
   return normalizeMoney(`${cents.slice(0, -2)}.${cents.slice(-2)}`)
 }
-export type ReportSummary = { id: number; fileName: string; fileSize: number }
+export type ReportSummary = { id: number; fileName: string; fileSize: number; category: ReportCategory }
 export type BusinessRecord = {
   id: number; orgName: string | null; manager: string | null; amount: string | null
-  projectName?: string; inspectionDate?: string | null; rectification?: string | null
+  projectName?: string; inspectionDate?: string | null; party?: string | null
   caseNo?: string; businessCategory?: string | null; caseType?: string | null; hearingDate?: string | null; result?: string | null
   reports?: ReportSummary[]
 }

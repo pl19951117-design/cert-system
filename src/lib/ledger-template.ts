@@ -1,12 +1,12 @@
 import JSZip from 'jszip'
 import * as XLSX from 'xlsx'
-import { BUSINESS_CATEGORIES, CASE_TYPES, RECTIFICATIONS } from './business-records'
+import { BUSINESS_CATEGORIES, CASE_TYPES, CASE_RESULTS } from './business-records'
 import { examStatuses, ledgerColumns, ledgerWorkbook, type ExcelKind } from './ledger-excel'
 
 // SheetJS Community Edition does not serialize list validation. Add the standard
 // worksheet element to the generated blank sheet before returning its XLSX bytes.
 export async function templateBytes(kind: ExcelKind) {
-  const choices: Record<string, readonly string[]> = { rectification: RECTIFICATIONS, businessCategory: BUSINESS_CATEGORIES, caseType: CASE_TYPES, isPassed: examStatuses, attended: ['已参加','未参加'] }
+  const choices: Record<string, readonly string[]> = { result: CASE_RESULTS, businessCategory: BUSINESS_CATEGORIES, caseType: CASE_TYPES, isPassed: examStatuses, attended: ['已参加','未参加'] }
   const book = ledgerWorkbook(kind, [], true)
   const cols = ledgerColumns(kind)
   const zip = await JSZip.loadAsync(XLSX.write(book, { type:'array', bookType:'xlsx' }))
@@ -17,7 +17,7 @@ export async function templateBytes(kind: ExcelKind) {
     const col = XLSX.utils.encode_col(i)
     return [`<dataValidation type="list" allowBlank="1" showErrorMessage="1" errorStyle="stop" error="请从列表选择" sqref="${col}2:${col}1001"><formula1>"${choices[key].join(',')}"</formula1></dataValidation>`]
   })
-  xml = xml.replace('</sheetData>', `</sheetData><dataValidations count="${rules.length}">${rules.join('')}</dataValidations>`)
+  if (rules.length) xml = xml.replace('</sheetData>', `</sheetData><dataValidations count="${rules.length}">${rules.join('')}</dataValidations>`)
   zip.file(part,xml)
   return zip.generateAsync({type:'arraybuffer',compression:'DEFLATE'})
 }

@@ -15,16 +15,16 @@ describe('ledger units and Excel', () => {
     expect(() => wanToYuan('0.0000001')).toThrow()
   })
   it('round trips safety amounts through actual Excel bytes in 万元', () => {
-    const row = { id: 1, orgName: '甲', manager: '乙', projectName: '项目', amount: '12345.67', inspectionDate: '2026-11-17', rectification: '整改中' } satisfies BusinessRecord
+    const row = { id: 1, orgName: '甲', manager: '乙', projectName: '项目', amount: '12345.67', inspectionDate: '2026-11-17' } satisfies BusinessRecord
     const bytes = XLSX.write(ledgerWorkbook('safety-inspections', [row]), { type: 'buffer', bookType: 'xlsx' })
-    expect(parseLedgerSheet('safety-inspections', XLSX.read(bytes))[0]).toMatchObject({ projectName: '项目', amount: '12345.67', rectification: '整改中', inspectionDate: '2026-11-17' })
+    expect(parseLedgerSheet('safety-inspections', XLSX.read(bytes))[0]).toMatchObject({ projectName: '项目', amount: '12345.67', inspectionDate: '2026-11-17' })
   })
   it('round trips category, type and 万元 amounts for legal cases', () => {
-    const row = { id: 1, orgName: null, manager: null, caseNo: '001', businessCategory: '应诉', caseType: '工伤纠纷', amount: '25.00' } satisfies BusinessRecord
+    const row = { id: 1, orgName: null, manager: null, party: '甲公司', caseNo: '001', businessCategory: '应诉', caseType: '工伤纠纷', amount: '25.00' } satisfies BusinessRecord
     const book = ledgerWorkbook('legal-cases', [row])
-    expect(book.Sheets['台账'].F1.v).toBe('涉案金额（万元）')
-    expect(book.Sheets['台账'].F2.v).toBe('0.0025')
-    expect(parseLedgerSheet('legal-cases', book)[0]).toMatchObject({ caseNo: '001', businessCategory: '应诉', caseType: '工伤纠纷', amount: '25.00' })
+    expect(book.Sheets['台账'].G1.v).toBe('涉案金额（万元）')
+    expect(book.Sheets['台账'].G2.v).toBe('0.0025')
+    expect(parseLedgerSheet('legal-cases', book)[0]).toMatchObject({ party: '甲公司', caseNo: '001', businessCategory: '应诉', caseType: '工伤纠纷', amount: '25.00' })
   })
   it('provides an empty template and rejects wrong-unit headers', () => {
     const book = ledgerWorkbook('safety-inspections', [], true)
@@ -34,8 +34,8 @@ describe('ledger units and Excel', () => {
     expect(() => parseLedgerSheet('safety-inspections', book)).toThrow('表头')
   })
   it('rejects new invalid options while preserving unchanged historical text', () => {
-    expect(() => validateChoices('safety-inspections', { rectification: '历史备注' })).toThrow()
-    expect(() => validateChoices('safety-inspections', { rectification: '历史备注' }, { rectification: '历史备注' })).not.toThrow()
+    expect(() => validateChoices('legal-cases', { result: '历史备注' })).toThrow()
+    expect(() => validateChoices('legal-cases', { result: '历史备注' }, { result: '历史备注' })).not.toThrow()
     expect(() => validateChoices('legal-cases', { businessCategory: '其他' })).toThrow()
     expect(() => validateChoices('legal-cases', { businessCategory: '起诉', caseType: '合同纠纷' })).not.toThrow()
   })
@@ -45,7 +45,7 @@ import JSZip from 'jszip'
 import { templateBytes } from '../ledger-template'
 
 it.each([
-  ['safety-inspections', '未整改,整改中,已整改'],
+  ['legal-cases', '已结案,未结案'],
   ['legal-cases', '起诉,应诉'],
   ['exams', '待考,已通过,未通过,已取证'],
   ['education', '已参加,未参加'],
@@ -63,4 +63,15 @@ it('preserves exam identifiers and statuses through an Excel export and import',
   const row = { name: '王明', idCard: '012345678901234567', certNo: '0003', isPassed: '已取证', regDate: '2026-11-19' }
   const bytes = XLSX.write(ledgerWorkbook('exams', [row]), { type: 'buffer', bookType: 'xlsx' })
   expect(parseLedgerSheet('exams', XLSX.read(bytes))[0]).toMatchObject(row)
+})
+
+it('exports attachment names in separate columns and imports only record fields', () => {
+  const reports = [{ category: 'notice', fileName: '通知.pdf' }, { category: 'reply', fileName: '回复.pdf' }]
+  const book = ledgerWorkbook('safety-inspections', [{ projectName: '甲项目', reports }])
+  const sheet = book.Sheets['台账']
+  expect(sheet.G2.v).toBe('通知.pdf')
+  expect(sheet.H2.v).toBe('回复.pdf')
+  expect(parseLedgerSheet('safety-inspections', book)[0]).toEqual({
+    _row: 2, orgName: '', manager: '', projectName: '甲项目', inspectionDate: '', amount: null,
+  })
 })
